@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Planner — NexTrip</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,600\&family=Plus+Jakarta+Sans:wght@300;400;500;600;700\&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+.layout { max-width: 1100px; margin: 0 auto; padding: 3rem 5vw 5rem; display: grid; grid-template-columns: 380px 1fr; gap: 2.5rem; align-items: start; }
+@media (max-width: 850px) { .layout { grid-template-columns: 1fr; } }
+
+.interest-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.interest-chip { padding: 7px 14px; border-radius: 100px; border: 1.5px solid var(--sand2); background: var(--white); font-size: 0.8rem; color: var(--muted); cursor: pointer; transition: all 0.2s; }
+.interest-chip.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+
+.result-card { background: var(--white); border-radius: 16px; border: 1px solid var(--sand2); overflow: hidden; }
+.result-head { padding: 1.5rem 1.75rem; background: linear-gradient(135deg, var(--teal-dk), var(--teal)); color: #fff; }
+.result-head h2 { font-family: 'Fraunces', serif; font-size: 1.3rem; margin-bottom: 6px; }
+.result-head p { font-size: 0.85rem; color: rgba(255,255,255,0.9); }
+
+.day-item { padding: 1.25rem 1.75rem; border-bottom: 1px solid var(--sand2); }
+.day-item:last-child { border-bottom: none; }
+.day-title { font-family: 'Fraunces', serif; font-weight: 700; font-size: 1rem; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+.day-budget { font-size: 0.78rem; color: var(--teal); font-weight: 700; background: var(--teal-lt); padding: 3px 10px; border-radius: 100px; }
+.day-slot { display: flex; gap: 10px; margin-bottom: 8px; font-size: 0.87rem; }
+.day-slot .slot-label { flex-shrink: 0; width: 74px; font-weight: 600; color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; padding-top: 2px; }
+.day-slot .slot-text { color: var(--ink2); }
+
+.empty-plan { text-align: center; padding: 4rem 2rem; color: var(--muted); }
+.empty-plan .icon { font-size: 2.5rem; margin-bottom: 1rem; }
+
+.dest-picker-list { max-height: 200px; overflow-y: auto; border: 1.5px solid var(--sand2); border-radius: 8px; margin-top: 6px; display: none; background: #fff; position: absolute; width: 100%; z-index: 10; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+.dest-picker-list.open { display: block; }
+.dest-picker-item { padding: 8px 12px; font-size: 0.85rem; cursor: pointer; }
+.dest-picker-item:hover { background: var(--sand); }
+.field { position: relative; }
+
+.my-trips-toggle { margin-top: 1.5rem; }
+.trip-mini { padding: 10px 14px; border: 1px solid var(--sand2); border-radius: 10px; margin-bottom: 8px; font-size: 0.82rem; cursor: pointer; }
+.trip-mini:hover { border-color: var(--teal); }
+.trip-mini strong { display: block; font-size: 0.88rem; margin-bottom: 2px; }
+
+/* ── Animated "planning" loader ── */
+.plan-loader { background: var(--white); border-radius: 16px; border: 1px solid var(--sand2); padding: 3.5rem 2rem; text-align: center; }
+.plane-track { position: relative; width: 220px; height: 40px; margin: 0 auto 1.75rem; }
+.plane-track::before {
+  content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 2px;
+  background: repeating-linear-gradient(90deg, var(--sand2) 0 8px, transparent 8px 16px);
+  transform: translateY(-50%);
+}
+.plane-icon {
+  position: absolute; top: 50%; left: 0; font-size: 1.4rem; transform: translateY(-50%) rotate(0deg);
+  animation: plane-fly 1.8s ease-in-out infinite;
+}
+@keyframes plane-fly {
+  0% { left: 0%; }
+  50% { left: calc(100% - 26px); }
+  100% { left: 0%; }
+}
+.loader-status { font-family: 'Fraunces', serif; font-size: 1.05rem; font-weight: 600; color: var(--ink); min-height: 1.4em; transition: opacity 0.2s; }
+.loader-sub { font-size: 0.82rem; color: var(--muted); margin-top: 6px; }
+
+/* ── Timeline itinerary ── */
+.timeline { position: relative; padding: 1.75rem 1.75rem 1.75rem 2.25rem; }
+.timeline::before { content: ''; position: absolute; left: 46px; top: 0; bottom: 0; width: 2px; background: var(--sand2); }
+.timeline-day {
+  position: relative; padding-left: 44px; margin-bottom: 1.75rem;
+  opacity: 0; transform: translateY(10px);
+  animation: day-in 0.45s ease forwards;
+}
+.timeline-day:last-child { margin-bottom: 0; }
+.timeline-dot {
+  position: absolute; left: -2px; top: 0; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--teal); color: #fff; font-weight: 700; font-size: 0.85rem;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 4px var(--white);
+}
+.timeline-body { background: var(--sand); border-radius: 12px; padding: 1.1rem 1.25rem; }
+.timeline-title { font-family: 'Fraunces', serif; font-weight: 700; font-size: 1rem; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.timeline-budget { font-size: 0.75rem; color: var(--teal-dk); font-weight: 700; background: var(--teal-lt); padding: 3px 10px; border-radius: 100px; white-space: nowrap; }
+@keyframes day-in { to { opacity: 1; transform: translateY(0); } }
+
+.success-banner {
+  display: flex; align-items: center; gap: 10px; padding: 1rem 1.25rem; margin: 0 1.75rem 0;
+  background: var(--teal-lt); color: var(--teal-dk); border-radius: 10px; font-size: 0.85rem; font-weight: 600;
+  opacity: 0; animation: banner-in 0.4s ease 0.15s forwards;
+}
+@keyframes banner-in { to { opacity: 1; } }
+.success-check {
+  width: 22px; height: 22px; border-radius: 50%; background: var(--teal); color: #fff; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 0.75rem;
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo"><svg width="28" height="28" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><defs><linearGradient id="ntGrad" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#14b892"/><stop offset="1" stop-color="#075a45"/></linearGradient></defs><rect width="30" height="30" rx="9" fill="url(#ntGrad)"/><path d="M8 15.5L21.5 6.5L16 22L13 16.5L8 15.5Z" fill="#fff"/></svg> Nex<span>Trip</span></a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="explorer.html">Explore</a></li>
+    <li><a href="planner.html" class="active">AI Planner</a></li>
+    <li><a href="budget.html">Budget</a></li>
+    <li><a href="reviews.html">Reviews</a></li>
+    <li id="nav-auth-slot"></li>
+  </ul>
+</nav>
+
+<div class="page-banner">
+  <h1>AI Trip Planner</h1>
+  <p>Pick a destination, your trip length and budget — get a day-by-day itinerary built from real destination data.</p>
+</div>
+
+<div class="layout">
+  <div class="card">
+    <div class="form-error" id="planner-error"></div>
+    <form id="planner-form" onsubmit="return submitPlanner(event)">
+      <div class="field">
+        <label>Destination</label>
+        <input type="text" id="dest-input" placeholder="e.g. Munnar, Pokhara, Sigiriya…" autocomplete="off" oninput="onDestInput(this.value)" required>
+        <div class="dest-picker-list" id="dest-picker-list"></div>
+      </div>
+      <div class="field">
+        <label>Trip length (days)</label>
+        <input type="number" id="days-input" min="1" max="30" value="4" required>
+      </div>
+      <div class="field">
+        <label>Total budget (₹)</label>
+        <input type="number" id="budget-input" min="0" step="500" value="15000" required>
+      </div>
+      <div class="field">
+        <label>Interests</label>
+        <div class="interest-grid" id="interest-grid">
+          <div class="interest-chip" data-v="nature">🌿 Nature</div>
+          <div class="interest-chip" data-v="adventure">🏔️ Adventure</div>
+          <div class="interest-chip" data-v="heritage">🏛️ Heritage</div>
+          <div class="interest-chip" data-v="beach">🏖️ Beach</div>
+          <div class="interest-chip" data-v="food">🍽️ Food</div>
+          <div class="interest-chip" data-v="wellness">🧘 Wellness</div>
+        </div>
+      </div>
+      <button class="btn-primary" type="submit" style="width:100%;margin-top:0.5rem;" id="planner-submit">Generate itinerary</button>
+    </form>
+
+    <div class="my-trips-toggle auth-only" style="display:none;">
+      <div class="sidebar-title" style="font-family:'Fraunces',serif;font-weight:700;margin-bottom:10px;">My saved trips</div>
+      <div id="my-trips-list"><span style="color:var(--muted);font-size:0.82rem;">No trips yet.</span></div>
+    </div>
+  </div>
+
+  <div id="result-area">
+    <div class="empty-plan card">
+      <div class="icon">🧭</div>
+      <div style="font-weight:700;margin-bottom:6px;color:var(--ink);">No itinerary yet</div>
+      <div>Fill out the form and generate your first trip plan.</div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Built by Team NexTrip &nbsp;·&nbsp; <span>Flask + SQLite</span>
+</footer>
+
+<script src="/static/js/nav.js"></script>
+<script>
+let selectedInterests = new Set();
+let allDestNames = [];
+
+document.getElementById('interest-grid').addEventListener('click', (e) => {
+  const chip = e.target.closest('.interest-chip');
+  if (!chip) return;
+  chip.classList.toggle('active');
+  if (chip.classList.contains('active')) selectedInterests.add(chip.dataset.v);
+  else selectedInterests.delete(chip.dataset.v);
+});
+
+async function loadDestNames() {
+  try {
+    const res = await fetch('/api/destinations');
+    const data = await res.json();
+    allDestNames = data.results.map(d => d.name);
+  } catch (e) { /* ignore */ }
+}
+
+function onDestInput(val) {
+  const list = document.getElementById('dest-picker-list');
+  if (!val) { list.classList.remove('open'); return; }
+  const matches = allDestNames.filter(n => n.toLowerCase().includes(val.toLowerCase())).slice(0, 6);
+  if (matches.length === 0) { list.classList.remove('open'); return; }
+  list.innerHTML = matches.map(n => `<div class="dest-picker-item" onclick="pickDest('${n.replace(/'/g,"\\'")}')">${n}</div>`).join('');
+  list.classList.add('open');
+}
+function pickDest(name) {
+  document.getElementById('dest-input').value = name;
+  document.getElementById('dest-picker-list').classList.remove('open');
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.field')) document.getElementById('dest-picker-list').classList.remove('open');
+});
+
+async function submitPlanner(e) {
+  if (e) e.preventDefault();
+  const btn = document.getElementById('planner-submit');
+  const errEl = document.getElementById('planner-error');
+  errEl.classList.remove('show');
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+
+  const destination = document.getElementById('dest-input').value.trim();
+  const payload = {
+    destination,
+    days: Number(document.getElementById('days-input').value),
+    budget: Number(document.getElementById('budget-input').value),
+    interests: [...selectedInterests],
+  };
+
+  showLoader(destination, payload.days, payload.budget);
+  const loaderStart = Date.now();
+
+  try {
+    const res = await fetch('/api/planner/generate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    // Keep the loading animation on screen for at least ~1.6s so it feels
+    // like real planning happened, not an instant flat response.
+    const elapsed = Date.now() - loaderStart;
+    if (elapsed < 1600) await new Promise(r => setTimeout(r, 1600 - elapsed));
+
+    if (!res.ok) {
+      stopLoader();
+      errEl.textContent = data.error || 'Could not generate itinerary';
+      errEl.classList.add('show');
+      renderEmptyState();
+      return false;
+    }
+    stopLoader();
+    renderItinerary(data);
+    if (CURRENT_USER) loadMyTrips();
+  } catch (err) {
+    stopLoader();
+    errEl.textContent = 'Something went wrong — is the server running?';
+    errEl.classList.add('show');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generate itinerary';
+  }
+  return false;
+}
+
+const LOADER_MESSAGES = (dest, days, budget) => [
+  `Scouting ${dest || 'your destination'} for the real highlights…`,
+  `Sequencing ${days} day${days == 1 ? '' : 's'} in the right order…`,
+  `Balancing it against your ₹${Number(budget).toLocaleString()} budget…`,
+  `Slipping in a local secret…`,
+];
+
+let loaderInterval = null;
+
+function showLoader(dest, days, budget) {
+  const messages = LOADER_MESSAGES(dest, days, budget);
+  document.getElementById('result-area').innerHTML = `
+    <div class="plan-loader">
+      <div class="plane-track"><span class="plane-icon">✈️</span></div>
+      <div class="loader-status" id="loader-status">${messages[0]}</div>
+      <div class="loader-sub">Building a real, specific plan — not a random guess</div>
+    </div>
+  `;
+  let i = 0;
+  const statusEl = document.getElementById('loader-status');
+  loaderInterval = setInterval(() => {
+    i = (i + 1) % messages.length;
+    if (statusEl) {
+      statusEl.style.opacity = 0;
+      setTimeout(() => { if (statusEl) { statusEl.textContent = messages[i]; statusEl.style.opacity = 1; } }, 200);
+    }
+  }, 550);
+}
+
+function stopLoader() {
+  if (loaderInterval) clearInterval(loaderInterval);
+  loaderInterval = null;
+}
+
+function renderEmptyState() {
+  document.getElementById('result-area').innerHTML = `
+    <div class="empty-plan card">
+      <div class="icon">🧭</div>
+      <div style="font-weight:700;margin-bottom:6px;color:var(--ink);">No itinerary yet</div>
+      <div>Fill out the form and generate your first trip plan.</div>
+    </div>`;
+}
+
+const DAY_ICONS = ['📍', '🧭', '🌄', '🍽️', '🚗', '⛰️', '🏝️', '🏛️', '🎒', '🌅'];
+
+function renderItinerary(data) {
+  const { destination, itinerary } = data;
+  const tip = itinerary.insider_tip;
+  document.getElementById('result-area').innerHTML = `
+    <div class="result-card">
+      <div class="result-head">
+        <h2>${destination.name} — ${itinerary.days.length}-day itinerary</h2>
+        <p>${itinerary.summary}</p>
+      </div>
+      <div class="success-banner"><span class="success-check">✓</span> Your real, day-by-day plan is ready — no filler, no randomness.</div>
+      <div class="timeline">
+        ${itinerary.days.map((d, idx) => `
+          <div class="timeline-day" style="animation-delay:${idx * 0.12}s;">
+            <div class="timeline-dot">${idx + 1}</div>
+            <div class="timeline-body">
+              <div class="timeline-title">${DAY_ICONS[idx % DAY_ICONS.length]} ${d.title}<span class="timeline-budget">~₹${d.budget_estimate.toLocaleString()}/day</span></div>
+              <div class="day-slot"><span class="slot-label">Morning</span><span class="slot-text">${d.morning}</span></div>
+              <div class="day-slot"><span class="slot-label">Afternoon</span><span class="slot-text">${d.afternoon}</span></div>
+              <div class="day-slot"><span class="slot-label">Evening</span><span class="slot-text">${d.evening}</span></div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+  document.getElementById('result-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function loadMyTrips() {
+  if (!CURRENT_USER) return;
+  try {
+    const res = await fetch('/api/trips');
+    const trips = await res.json();
+    const list = document.getElementById('my-trips-list');
+    if (trips.length === 0) { list.innerHTML = '<span style="color:var(--muted);font-size:0.82rem;">No trips yet.</span>'; return; }
+    list.innerHTML = trips.slice(0, 5).map(t => `
+      <div class="trip-mini" onclick='renderItinerary(${JSON.stringify({destination:{name:t.destination_name}, itinerary:t.itinerary}).replace(/'/g,"&#39;")})'>
+        <strong>${t.destination_name}</strong>
+        ${t.days} days · ₹${t.budget_total.toLocaleString()} budget
+      </div>
+    `).join('');
+  } catch (e) { /* ignore */ }
+}
+
+function onAuthChanged() { if (CURRENT_USER) loadMyTrips(); }
+
+// Pre-fill destination from Explorer link, and auto-generate immediately —
+// clicking "Plan trip" should feel like it does something, not just fill a form.
+const urlParams = new URLSearchParams(location.search);
+if (urlParams.get('destination')) {
+  document.getElementById('dest-input').value = urlParams.get('destination');
+  loadDestNames().then(() => submitPlanner(null));
+} else {
+  loadDestNames();
+}
+
+document.addEventListener('nehang-auth-ready', () => { if (CURRENT_USER) loadMyTrips(); });
+</script>
+</body>
+</html>

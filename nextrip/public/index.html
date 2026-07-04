@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NexTrip — Plan your next journey</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,600\&family=Plus+Jakarta+Sans:wght@300;400;500;600;700\&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+.home-hero {
+  margin-top: 64px;
+  height: 560px;
+  position: relative;
+  overflow: hidden;
+}
+.home-hero img { width: 100%; height: 100%; object-fit: cover; filter: brightness(0.5); }
+.home-hero-overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 0 2rem;
+}
+.home-hero-overlay h1 {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(2.2rem, 6vw, 3.8rem);
+  font-weight: 800; color: #fff; line-height: 1.1; margin-bottom: 1.1rem;
+  text-shadow: 0 2px 20px rgba(0,0,0,0.3);
+}
+.home-hero-overlay p { color: rgba(255,255,255,0.85); font-size: 1.05rem; max-width: 560px; margin-bottom: 2rem; }
+.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.hero-actions .btn-primary, .hero-actions .btn-ghost { padding: 13px 28px; font-size: 0.95rem; }
+.hero-actions .btn-ghost { background: rgba(255,255,255,0.1); color: #fff; border-color: rgba(255,255,255,0.4); }
+.hero-actions .btn-ghost:hover { border-color: #fff; }
+
+.section { max-width: 1280px; margin: 0 auto; padding: 4rem 5vw; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2rem; flex-wrap: wrap; gap: 0.5rem; }
+.section-title { font-family: 'Fraunces', serif; font-size: 1.8rem; font-weight: 700; }
+.section-sub { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+.section-link { color: var(--teal); font-weight: 600; font-size: 0.88rem; text-decoration: none; white-space: nowrap; }
+
+.feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+.feature-card { background: var(--white); border: 1px solid var(--sand2); border-radius: 16px; padding: 1.75rem; }
+.feature-icon { font-size: 1.8rem; margin-bottom: 0.75rem; }
+.feature-card h3 { font-family: 'Fraunces', serif; font-size: 1.05rem; margin-bottom: 0.5rem; }
+.feature-card p { color: var(--muted); font-size: 0.88rem; }
+
+.dest-grid-home { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.5rem; }
+.dest-card { background: var(--white); border-radius: 18px; overflow: hidden; border: 1px solid var(--sand2); cursor: pointer; transition: transform 0.25s, box-shadow 0.25s; text-decoration: none; color: inherit; display: block; }
+.dest-card:hover { transform: translateY(-6px); box-shadow: 0 20px 48px rgba(0,0,0,0.12); }
+.dest-img-wrap { position: relative; height: 190px; overflow: hidden; }
+.dest-img-wrap img { width: 100%; height: 100%; object-fit: cover; }
+.dest-badge { position: absolute; top: 12px; left: 12px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 10px; border-radius: 100px; background: rgba(13,158,117,0.85); color: #fff; }
+.dest-body { padding: 1rem 1.1rem 1.1rem; }
+.dest-name { font-family: 'Fraunces', serif; font-size: 1rem; font-weight: 700; margin-bottom: 3px; }
+.dest-loc { font-size: 0.78rem; color: var(--muted); margin-bottom: 8px; }
+.dest-rating { font-size: 0.82rem; font-weight: 600; }
+.dest-rating .star { color: var(--accent); }
+
+.cta-strip {
+  background: linear-gradient(135deg, var(--teal-dk), var(--teal));
+  color: #fff; text-align: center; padding: 4rem 5vw; border-radius: 24px;
+  margin: 0 5vw 4rem;
+}
+.cta-strip h2 { font-family: 'Fraunces', serif; font-size: 1.8rem; margin-bottom: 0.75rem; }
+.cta-strip p { color: rgba(255,255,255,0.85); margin-bottom: 1.75rem; }
+.cta-strip .btn-primary { background: #fff; color: var(--teal-dk); }
+.cta-strip .btn-primary:hover { background: var(--sand); }
+
+@media (max-width: 900px) {
+  .feature-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo"><svg width="28" height="28" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><defs><linearGradient id="ntGrad" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#14b892"/><stop offset="1" stop-color="#075a45"/></linearGradient></defs><rect width="30" height="30" rx="9" fill="url(#ntGrad)"/><path d="M8 15.5L21.5 6.5L16 22L13 16.5L8 15.5Z" fill="#fff"/></svg> Nex<span>Trip</span></a>
+  <ul class="nav-links">
+    <li><a href="index.html" class="active">Home</a></li>
+    <li><a href="explorer.html">Explore</a></li>
+    <li><a href="planner.html">AI Planner</a></li>
+    <li><a href="budget.html">Budget</a></li>
+    <li><a href="reviews.html">Reviews</a></li>
+    <li id="nav-auth-slot"></li>
+  </ul>
+</nav>
+
+<div class="home-hero">
+  <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&auto=format&fit=crop&q=80" alt="Mountain landscape">
+  <div class="home-hero-overlay">
+    <h1>Where will you go next?</h1>
+    <p>Discover famous landmarks, local secrets, and hidden gems across India and beyond — then let our planner build the itinerary and budget for you.</p>
+    <div class="hero-actions">
+      <a href="explorer.html" class="btn-primary">Explore destinations</a>
+      <a href="planner.html" class="btn-ghost">Try the AI Planner</a>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Everything you need to plan a trip</div>
+      <div class="section-sub">Explorer, AI itinerary planner, budget tracker, and real traveler reviews — all in one place.</div>
+    </div>
+  </div>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feature-icon">🔍</div>
+      <h3>Explore destinations</h3>
+      <p>Filter and search real, database-backed destinations by category, country, and season. Save your favorites to your account.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🧭</div>
+      <h3>AI trip planner</h3>
+      <p>Tell us where you're going, for how long, and your budget — get a day-by-day itinerary generated instantly.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">💰</div>
+      <h3>Budget tracker</h3>
+      <p>Log expenses by category per trip and see exactly where your money is going, saved to your account.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="padding-top:0;">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Popular right now</div>
+      <div class="section-sub" id="home-dest-sub">Loading destinations…</div>
+    </div>
+    <a href="explorer.html" class="section-link">See all destinations →</a>
+  </div>
+  <div class="dest-grid-home" id="home-dest-grid">
+    <div class="loading-state"><div class="spinner"></div>Loading…</div>
+  </div>
+</div>
+
+<div class="cta-strip">
+  <h2>Ready to plan your next trip?</h2>
+  <p>Create a free account to save destinations, generate itineraries, and track your travel budget.</p>
+  <button class="btn-primary" onclick="openAuthModal('register')">Get started free</button>
+</div>
+
+<footer>
+  Built by Team NexTrip &nbsp;·&nbsp; <span>Flask + SQLite</span>
+</footer>
+
+<script src="/static/js/nav.js"></script>
+<script>
+async function loadHomeDestinations() {
+  try {
+    const res = await fetch('/api/destinations?sort=popular');
+    const data = await res.json();
+    const grid = document.getElementById('home-dest-grid');
+    const top = data.results.slice(0, 6);
+    document.getElementById('home-dest-sub').textContent = `${data.total} destinations across 6 countries`;
+    grid.innerHTML = top.map(d => `
+      <a class="dest-card" href="explorer.html?q=${encodeURIComponent(d.name)}">
+        <div class="dest-img-wrap">
+          <img src="${d.img}" alt="${d.name}" loading="lazy" onerror="this.src='${d.fallback}'">
+          <div class="dest-badge">${d.label}</div>
+        </div>
+        <div class="dest-body">
+          <div class="dest-name">${d.name}</div>
+          <div class="dest-loc">📍 ${d.loc}</div>
+          <div class="dest-rating"><span class="star">★</span> ${d.rating} <span style="color:var(--muted);font-weight:400;">(${d.reviews.toLocaleString()})</span></div>
+        </div>
+      </a>
+    `).join('');
+  } catch (e) {
+    document.getElementById('home-dest-grid').innerHTML = '<div class="empty-state">Could not load destinations. Is the server running?</div>';
+  }
+}
+loadHomeDestinations();
+</script>
+</body>
+</html>
