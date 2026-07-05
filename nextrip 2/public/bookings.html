@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Bookings — NexTrip</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+.bookings-wrap { max-width: 850px; margin: 0 auto; padding: 3rem 5vw 5rem; }
+.booking-tabs { display: flex; gap: 8px; margin-bottom: 1.75rem; flex-wrap: wrap; }
+.booking-tab { padding: 8px 18px; border-radius: 100px; border: 1.5px solid var(--sand2); background: var(--white); font-size: 0.82rem; font-weight: 600; color: var(--muted); cursor: pointer; transition: all 0.2s ease; }
+.booking-tab.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+.booking-tab:hover:not(.active) { border-color: var(--teal); color: var(--teal); }
+
+.booking-card {
+  background: var(--white); border: 1px solid var(--sand2); border-radius: 14px; padding: 1.4rem 1.6rem; margin-bottom: 1rem;
+  opacity: 0; transform: translateY(14px); animation: fade-in-up 0.5s ease forwards;
+  transition: box-shadow 0.25s ease;
+}
+.booking-card:hover { box-shadow: 0 12px 30px rgba(0,0,0,0.07); }
+.booking-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+.booking-type-badge { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 3px 10px; border-radius: 100px; background: var(--teal-lt); color: var(--teal-dk); }
+.booking-status { font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 100px; }
+.status-confirmed { background: var(--teal-lt); color: var(--teal-dk); }
+.status-cancelled { background: #fdecec; color: #b33; }
+.booking-title { font-family: 'Fraunces', serif; font-weight: 700; font-size: 1.05rem; margin-bottom: 4px; }
+.booking-meta { font-size: 0.82rem; color: var(--muted); }
+.booking-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--sand); }
+.booking-ref { font-family: monospace; font-size: 0.8rem; color: var(--muted); }
+.booking-amount { font-family: 'Fraunces', serif; font-weight: 800; font-size: 1.05rem; color: var(--teal-dk); }
+.cancel-link { background: none; border: none; color: #b33; font-size: 0.78rem; cursor: pointer; text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo"><svg width="28" height="28" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><defs><linearGradient id="ntGrad" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#14b892"/><stop offset="1" stop-color="#075a45"/></linearGradient></defs><rect width="30" height="30" rx="9" fill="url(#ntGrad)"/><path d="M8 15.5L21.5 6.5L16 22L13 16.5L8 15.5Z" fill="#fff"/></svg><span class="logo-word">Nex<span class="logo-accent">Trip</span></span></a>
+  <ul class="nav-links">
+    <li><a href="flights.html">Flights</a></li>
+    <li><a href="hotels.html">Hotels</a></li>
+    <li><a href="transport.html">Buses &amp; Trains</a></li>
+    <li><a href="explorer.html">Explore</a></li>
+    <li><a href="planner.html">AI Planner</a></li>
+    <li><a href="reviews.html">Reviews</a></li>
+    <li id="nav-auth-slot"></li>
+  </ul>
+</nav>
+
+<div class="page-banner">
+  <h1>My Bookings</h1>
+  <p>All your flights, hotels, and bus/train tickets in one place.</p>
+</div>
+
+<div class="bookings-wrap" id="bookings-wrap">
+  <div class="loading-state"><div class="spinner"></div></div>
+</div>
+
+<footer>
+  Built by Team NexTrip &nbsp;·&nbsp; <a href="about.html" style="color:rgba(255,255,255,0.45);">About Us</a> &nbsp;·&nbsp; <span>Flask + SQLite</span>
+</footer>
+
+<script src="/static/js/nav.js"></script>
+<script>
+let allBookings = [];
+let currentTab = 'all';
+
+function bookingTitle(b) {
+  if (b.booking_type === 'flight') return `${b.item.airline} · ${b.item.origin} → ${b.item.destination}`;
+  if (b.booking_type === 'hotel') return b.item.name;
+  return `${b.item.operator} · ${b.item.origin} → ${b.item.destination}`;
+}
+function bookingMeta(b) {
+  if (b.booking_type === 'flight') return `${b.details.date || ''} · ${b.item.depart_time} → ${b.item.arrive_time} · ${b.details.passengers} traveler(s)`;
+  if (b.booking_type === 'hotel') return `${b.details.checkin} → ${b.details.checkout} · ${b.details.guests} guest(s), ${b.details.nights} night(s)`;
+  return `${b.details.date || ''} · ${b.item.depart_time} → ${b.item.arrive_time} · ${b.item.bus_type}`;
+}
+function bookingIcon(type) { return type === 'flight' ? '✈️' : type === 'hotel' ? '🏨' : '🚌'; }
+
+async function loadBookings() {
+  if (!CURRENT_USER) {
+    document.getElementById('bookings-wrap').innerHTML = `
+      <div class="card" style="text-align:center;padding:3rem;">
+        <div style="font-size:2rem;margin-bottom:1rem;">🔒</div>
+        <div style="font-weight:700;margin-bottom:6px;">Sign in to view your bookings</div>
+        <button class="btn-primary" onclick="openAuthModal('login')">Sign in</button>
+      </div>`;
+    return;
+  }
+  const res = await fetch('/api/bookings');
+  allBookings = await res.json();
+  renderBookings();
+}
+
+function setTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.booking-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  renderBookings();
+}
+
+function renderBookings() {
+  const wrap = document.getElementById('bookings-wrap');
+  const filtered = currentTab === 'all' ? allBookings : allBookings.filter(b => b.booking_type === currentTab);
+
+  const tabsHtml = `
+    <div class="booking-tabs">
+      <div class="booking-tab ${currentTab==='all'?'active':''}" data-tab="all" onclick="setTab('all')">All (${allBookings.length})</div>
+      <div class="booking-tab ${currentTab==='flight'?'active':''}" data-tab="flight" onclick="setTab('flight')">✈️ Flights (${allBookings.filter(b=>b.booking_type==='flight').length})</div>
+      <div class="booking-tab ${currentTab==='hotel'?'active':''}" data-tab="hotel" onclick="setTab('hotel')">🏨 Hotels (${allBookings.filter(b=>b.booking_type==='hotel').length})</div>
+      <div class="booking-tab ${currentTab==='bus'?'active':''}" data-tab="bus" onclick="setTab('bus')">🚌 Buses (${allBookings.filter(b=>b.booking_type==='bus').length})</div>
+    </div>`;
+
+  if (filtered.length === 0) {
+    wrap.innerHTML = tabsHtml + `<div class="empty-state card"><div style="font-size:2rem;margin-bottom:1rem;">🧳</div>No bookings yet in this category.<br><a href="flights.html" style="color:var(--teal);font-weight:600;">Start searching →</a></div>`;
+    return;
+  }
+
+  wrap.innerHTML = tabsHtml + filtered.map((b, idx) => `
+    <div class="booking-card" style="animation-delay:${idx * 0.06}s;">
+      <div class="booking-head">
+        <span class="booking-type-badge">${bookingIcon(b.booking_type)} ${b.booking_type}</span>
+        <span class="booking-status status-${b.status}">${b.status}</span>
+      </div>
+      <div class="booking-title">${bookingTitle(b)}</div>
+      <div class="booking-meta">${bookingMeta(b)}</div>
+      <div class="booking-footer">
+        <div><div class="booking-ref">Ref: ${b.booking_ref}</div><div class="booking-amount">₹${b.total_amount.toLocaleString()}</div></div>
+        ${b.status === 'confirmed' ? `<button class="cancel-link" onclick="cancelBooking(${b.id})">Cancel booking</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function cancelBooking(id) {
+  await fetch(`/api/bookings/${id}/cancel`, { method: 'POST' });
+  showToast('Booking cancelled');
+  loadBookings();
+}
+
+function onAuthChanged() { loadBookings(); }
+document.addEventListener('nextrip-auth-ready', loadBookings);
+</script>
+</body>
+</html>

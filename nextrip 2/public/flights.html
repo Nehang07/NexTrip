@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flights — NexTrip</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+.search-card { background: var(--white); border-radius: 16px; border: 1px solid var(--sand2); padding: 1.75rem; margin: -3rem 5vw 2rem; position: relative; z-index: 5; box-shadow: 0 20px 48px rgba(0,0,0,0.08); }
+.search-grid { display: grid; grid-template-columns: 1fr 1fr auto 1fr 1fr auto; gap: 1rem; align-items: end; }
+.swap-btn { width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid var(--sand2); background: var(--white); cursor: pointer; font-size: 1rem; transition: all 0.2s ease; align-self: center; margin-bottom: 4px; }
+.swap-btn:hover { border-color: var(--teal); color: var(--teal); transform: rotate(180deg); }
+@media (max-width: 950px) { .search-grid { grid-template-columns: 1fr 1fr; } .swap-btn { display: none; } }
+
+.results-wrap { max-width: 1100px; margin: 0 auto; padding: 0 5vw 4rem; }
+.results-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+.results-title { font-family: 'Fraunces', serif; font-size: 1.3rem; font-weight: 700; }
+.results-sub { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
+
+.flight-card {
+  background: var(--white); border: 1px solid var(--sand2); border-radius: 14px; padding: 1.5rem;
+  display: grid; grid-template-columns: 1fr auto; gap: 1.5rem; align-items: center; margin-bottom: 1rem;
+  transition: transform 0.25s cubic-bezier(.2,.7,.2,1), box-shadow 0.25s ease, border-color 0.25s ease;
+  opacity: 0; transform: translateY(14px); animation: fade-in-up 0.5s ease forwards;
+}
+.flight-card:hover { transform: translateY(-4px); box-shadow: 0 16px 36px rgba(0,0,0,0.08); border-color: var(--sand2); }
+.flight-route { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+.flight-airline { font-weight: 700; font-size: 0.95rem; margin-bottom: 3px; }
+.flight-number { font-size: 0.75rem; color: var(--muted); }
+.flight-times { display: flex; align-items: center; gap: 12px; }
+.flight-time-block { text-align: center; }
+.flight-time { font-family: 'Fraunces', serif; font-size: 1.3rem; font-weight: 700; }
+.flight-airport { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+.flight-duration-line { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 90px; }
+.flight-duration-line .line { width: 100%; height: 1.5px; background: var(--sand2); position: relative; }
+.flight-duration-line .line::after { content: '✈'; position: absolute; right: 0; top: -8px; font-size: 0.7rem; color: var(--teal); }
+.flight-duration-text { font-size: 0.72rem; color: var(--muted); }
+.flight-price-block { text-align: right; }
+.flight-price { font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 800; color: var(--teal-dk); }
+.flight-seats { font-size: 0.72rem; color: var(--accent); margin: 4px 0 10px; }
+@media (max-width: 700px) { .flight-card { grid-template-columns: 1fr; } .flight-price-block { text-align: left; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo"><svg width="28" height="28" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><defs><linearGradient id="ntGrad" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#14b892"/><stop offset="1" stop-color="#075a45"/></linearGradient></defs><rect width="30" height="30" rx="9" fill="url(#ntGrad)"/><path d="M8 15.5L21.5 6.5L16 22L13 16.5L8 15.5Z" fill="#fff"/></svg><span class="logo-word">Nex<span class="logo-accent">Trip</span></span></a>
+  <ul class="nav-links">
+    <li><a href="flights.html" class="active">Flights</a></li>
+    <li><a href="hotels.html">Hotels</a></li>
+    <li><a href="transport.html">Buses &amp; Trains</a></li>
+    <li><a href="explorer.html">Explore</a></li>
+    <li><a href="planner.html">AI Planner</a></li>
+    <li><a href="reviews.html">Reviews</a></li>
+    <li id="nav-auth-slot"></li>
+  </ul>
+</nav>
+
+<div class="page-banner">
+  <h1>Find your flight</h1>
+  <p>Search real routes across India, Australia, London, France, and Thailand.</p>
+</div>
+
+<div class="search-card reveal">
+  <form id="flight-search-form" onsubmit="return searchFlights(event)">
+    <div class="search-grid">
+      <div class="field">
+        <label>From</label>
+        <select id="origin-select" required></select>
+      </div>
+      <div class="field">
+        <label>To</label>
+        <select id="destination-select" required></select>
+      </div>
+      <button type="button" class="swap-btn" onclick="swapCities()" title="Swap">⇄</button>
+      <div class="field">
+        <label>Departure date</label>
+        <input type="date" id="depart-date" required>
+      </div>
+      <div class="field">
+        <label>Travelers</label>
+        <input type="number" id="passenger-count" min="1" max="9" value="1">
+      </div>
+      <button class="btn-primary" type="submit" style="height:44px;">Search Flights</button>
+    </div>
+  </form>
+</div>
+
+<div class="results-wrap">
+  <div class="results-head">
+    <div>
+      <div class="results-title" id="results-title">Popular routes</div>
+      <div class="results-sub" id="results-sub">Pick a route above to search, or browse below</div>
+    </div>
+    <select class="sort-select" id="sort-select" onchange="renderResults()">
+      <option value="price">Sort: Price (low to high)</option>
+      <option value="duration">Sort: Shortest duration</option>
+      <option value="departure">Sort: Earliest departure</option>
+    </select>
+  </div>
+  <div id="flight-results">
+    <div class="loading-state"><div class="spinner"></div>Loading flights…</div>
+  </div>
+</div>
+
+<footer>
+  Built by Team NexTrip &nbsp;·&nbsp; <a href="about.html" style="color:rgba(255,255,255,0.45);">About Us</a> &nbsp;·&nbsp; <span>Flask + SQLite</span>
+</footer>
+
+<script src="/static/js/nav.js"></script>
+<script>
+let cities = [];
+let currentResults = [];
+
+async function loadCities() {
+  const res = await fetch('/api/cities');
+  cities = await res.json();
+  const opts = cities.map(c => `<option value="${c.code}">${c.name} (${c.code})</option>`).join('');
+  document.getElementById('origin-select').innerHTML = opts;
+  document.getElementById('destination-select').innerHTML = opts;
+  document.getElementById('origin-select').value = 'DEL';
+  document.getElementById('destination-select').value = 'BOM';
+
+  const params = new URLSearchParams(location.search);
+  if (params.get('origin')) document.getElementById('origin-select').value = params.get('origin');
+  if (params.get('destination')) document.getElementById('destination-select').value = params.get('destination');
+
+  const dateInput = document.getElementById('depart-date');
+  const tomorrow = new Date(Date.now() + 86400000);
+  dateInput.value = tomorrow.toISOString().slice(0, 10);
+  dateInput.min = new Date().toISOString().slice(0, 10);
+
+  searchFlights(null);
+}
+
+function swapCities() {
+  const o = document.getElementById('origin-select');
+  const d = document.getElementById('destination-select');
+  [o.value, d.value] = [d.value, o.value];
+}
+
+async function searchFlights(e) {
+  if (e) e.preventDefault();
+  const origin = document.getElementById('origin-select').value;
+  const destination = document.getElementById('destination-select').value;
+
+  document.getElementById('flight-results').innerHTML = '<div class="loading-state"><div class="spinner"></div>Searching flights…</div>';
+
+  const res = await fetch(`/api/flights?origin=${origin}&destination=${destination}`);
+  const data = await res.json();
+  currentResults = data.results;
+
+  const oName = cities.find(c => c.code === origin)?.name || origin;
+  const dName = cities.find(c => c.code === destination)?.name || destination;
+  document.getElementById('results-title').textContent = `${oName} → ${dName}`;
+  document.getElementById('results-sub').textContent = `${data.count} flight${data.count === 1 ? '' : 's'} found`;
+
+  renderResults();
+  return false;
+}
+
+function renderResults() {
+  const sort = document.getElementById('sort-select').value;
+  let results = [...currentResults];
+  if (sort === 'duration') results.sort((a, b) => a.duration_mins - b.duration_mins);
+  else if (sort === 'departure') results.sort((a, b) => a.depart_time.localeCompare(b.depart_time));
+  else results.sort((a, b) => a.price - b.price);
+
+  const el = document.getElementById('flight-results');
+  if (results.length === 0) {
+    el.innerHTML = '<div class="empty-state">No flights found for this route. Try a different city pair.</div>';
+    return;
+  }
+  const passengers = Number(document.getElementById('passenger-count').value) || 1;
+
+  el.innerHTML = results.map((f, idx) => `
+    <div class="flight-card" style="animation-delay:${idx * 0.06}s;">
+      <div class="flight-route">
+        <div>
+          <div class="flight-airline">${f.airline}</div>
+          <div class="flight-number">${f.flight_number} · ${f.cabin_class}</div>
+        </div>
+        <div class="flight-times">
+          <div class="flight-time-block"><div class="flight-time">${f.depart_time}</div><div class="flight-airport">${f.origin}</div></div>
+          <div class="flight-duration-line"><div class="flight-duration-text">${Math.floor(f.duration_mins/60)}h ${f.duration_mins%60}m</div><div class="line"></div><div class="flight-duration-text">Nonstop</div></div>
+          <div class="flight-time-block"><div class="flight-time">${f.arrive_time}</div><div class="flight-airport">${f.destination}</div></div>
+        </div>
+      </div>
+      <div class="flight-price-block">
+        <div class="flight-price">₹${(f.price * passengers).toLocaleString()}</div>
+        <div class="flight-seats">${f.seats_available} seats left</div>
+        <button class="btn-primary" onclick="bookFlight(${f.id}, ${passengers})">Book Now</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function bookFlight(flightId, passengers) {
+  if (!CURRENT_USER) { showToast('Sign in to book a flight'); openAuthModal('login'); return; }
+  const flight = currentResults.find(f => f.id === flightId);
+  const date = document.getElementById('depart-date').value;
+  sessionStorage.setItem('nextrip_checkout', JSON.stringify({
+    booking_type: 'flight', item: flight, amount: flight.price * passengers,
+    details: { passengers, date, passenger_name: CURRENT_USER.name },
+  }));
+  location.href = 'checkout.html';
+}
+
+function onAuthChanged() { /* nothing extra needed here */ }
+loadCities();
+</script>
+</body>
+</html>

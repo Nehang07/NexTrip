@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About — NexTrip</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+.about-wrap { max-width: 850px; margin: 0 auto; padding: 3.5rem 5vw 5rem; }
+.about-lead { font-size: 1.1rem; color: var(--ink2); margin-bottom: 2.5rem; max-width: 640px; }
+.founder-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin: 2rem 0 2.5rem; }
+.founder-card { background: var(--white); border: 1px solid var(--sand2); border-radius: 16px; padding: 1.75rem; text-align: center; }
+.founder-avatar {
+  width: 76px; height: 76px; border-radius: 50%; margin: 0 auto 1rem;
+  background: linear-gradient(135deg, var(--teal-dk), var(--teal)); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 700;
+}
+.founder-name { font-family: 'Fraunces', serif; font-weight: 700; font-size: 1.05rem; margin-bottom: 2px; }
+.founder-role { font-size: 0.8rem; color: var(--teal); font-weight: 600; margin-bottom: 10px; }
+.founder-bio { font-size: 0.85rem; color: var(--muted); }
+.value-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-top: 1.5rem; }
+.value-card { background: var(--white); border: 1px solid var(--sand2); border-radius: 12px; padding: 1.25rem; }
+.value-card h4 { font-family: 'Fraunces', serif; font-size: 0.95rem; margin-bottom: 6px; }
+.value-card p { font-size: 0.82rem; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo"><svg width="28" height="28" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><defs><linearGradient id="ntGrad" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#14b892"/><stop offset="1" stop-color="#075a45"/></linearGradient></defs><rect width="30" height="30" rx="9" fill="url(#ntGrad)"/><path d="M8 15.5L21.5 6.5L16 22L13 16.5L8 15.5Z" fill="#fff"/></svg><span class="logo-word">Nex<span class="logo-accent">Trip</span></span></a>
+  <ul class="nav-links">
+    <li><a href="flights.html">Flights</a></li>
+    <li><a href="hotels.html">Hotels</a></li>
+    <li><a href="transport.html">Buses &amp; Trains</a></li>
+    <li><a href="explorer.html">Explore</a></li>
+    <li><a href="planner.html">AI Planner</a></li>
+    <li><a href="reviews.html">Reviews</a></li>
+    <li id="nav-auth-slot"></li>
+  </ul>
+</nav>
+
+<div class="page-banner">
+  <h1>About NexTrip</h1>
+  <p>Built to make planning and booking a trip feel like one connected journey, not five different apps.</p>
+</div>
+
+<div class="about-wrap">
+  <p class="about-lead reveal">
+    NexTrip brings destination discovery, AI-assisted trip planning, budgeting, and real booking — flights, hotels,
+    and buses/trains — into a single place. No more juggling one app to dream up a trip and another to actually book it.
+  </p>
+
+  <h2 style="font-family:'Fraunces',serif;font-size:1.4rem;margin-bottom:1rem;">Founding team</h2>
+  <div class="founder-grid">
+    <div class="founder-card reveal">
+      <div class="founder-avatar">N</div>
+      <div class="founder-name">Mr. Nehang</div>
+      <div class="founder-role">Co-Founder</div>
+      <div class="founder-bio">Leading NexTrip's vision to make trip planning and booking feel like one seamless journey.</div>
+    </div>
+  </div>
+
+  <h2 style="font-family:'Fraunces',serif;font-size:1.4rem;margin-bottom:0.5rem;">What we stand for</h2>
+  <div class="value-grid">
+    <div class="value-card reveal">
+      <h4>🧭 Plans, not just prices</h4>
+      <p>Every destination comes with a real, curated itinerary — not a generic template.</p>
+    </div>
+    <div class="value-card reveal">
+      <h4>💎 Hidden gems included</h4>
+      <p>We surface the lesser-known spot alongside the must-see one, every time.</p>
+    </div>
+    <div class="value-card reveal">
+      <h4>🔒 Straightforward booking</h4>
+      <p>Search, book, and track flights, hotels, and buses/trains — all in one account.</p>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Built by Team NexTrip &nbsp;·&nbsp; <a href="about.html" style="color:rgba(255,255,255,0.45);">About Us</a> &nbsp;·&nbsp; <span>Flask + SQLite</span>
+</footer>
+
+<script src="/static/js/nav.js"></script>
+</body>
+</html>

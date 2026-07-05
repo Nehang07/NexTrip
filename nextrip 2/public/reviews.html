@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reviews — NexTrip</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700\&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+.layout { max-width: 1100px; margin: 0 auto; padding: 3rem 5vw 5rem; display: grid; grid-template-columns: 340px 1fr; gap: 2.5rem; align-items: start; }
+@media (max-width: 850px) { .layout { grid-template-columns: 1fr; } }
+
+.star-picker { display: flex; gap: 6px; font-size: 1.5rem; cursor: pointer; }
+.star-picker span { color: var(--sand2); transition: color 0.15s; }
+.star-picker span.filled { color: var(--accent); }
+
+.review-item { padding: 1.25rem 0; border-bottom: 1px solid var(--sand2); }
+.review-item:last-child { border-bottom: none; }
+.review-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.review-user { font-weight: 700; font-size: 0.9rem; }
+.review-dest { font-size: 0.78rem; color: var(--teal); font-weight: 600; }
+.review-stars { color: var(--accent); font-size: 0.85rem; }
+.review-date { font-size: 0.75rem; color: var(--muted); }
+.review-comment { font-size: 0.88rem; color: var(--ink2); }
+
+.review-filter select { width: 100%; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo"><svg width="28" height="28" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><defs><linearGradient id="ntGrad" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#14b892"/><stop offset="1" stop-color="#075a45"/></linearGradient></defs><rect width="30" height="30" rx="9" fill="url(#ntGrad)"/><path d="M8 15.5L21.5 6.5L16 22L13 16.5L8 15.5Z" fill="#fff"/></svg><span class="logo-word">Nex<span class="logo-accent">Trip</span></span></a>
+  <ul class="nav-links">
+    <li><a href="flights.html">Flights</a></li>
+    <li><a href="hotels.html">Hotels</a></li>
+    <li><a href="transport.html">Buses &amp; Trains</a></li>
+    <li><a href="explorer.html">Explore</a></li>
+    <li><a href="planner.html">AI Planner</a></li>
+    <li><a href="reviews.html" class="active">Reviews</a></li>
+    <li id="nav-auth-slot"></li>
+  </ul>
+</nav>
+
+<div class="page-banner">
+  <h1>Traveler Reviews</h1>
+  <p>Real reviews from real trips, saved to our database. Sign in to leave your own.</p>
+</div>
+
+<div class="layout">
+  <div>
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="sidebar-title" style="font-family:'Fraunces',serif;font-weight:700;margin-bottom:1rem;">Write a review</div>
+      <div class="form-error" id="review-error"></div>
+      <div class="form-success" id="review-success"></div>
+      <form id="review-form" onsubmit="return submitReview(event)" class="auth-only" style="display:none;">
+        <div class="field">
+          <label>Destination</label>
+          <select id="review-dest" required>
+            <option value="">Loading destinations…</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Rating</label>
+          <div class="star-picker" id="star-picker">
+            <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Your review</label>
+          <textarea id="review-comment" placeholder="Share what stood out about this trip…" required></textarea>
+        </div>
+        <button class="btn-primary" type="submit" style="width:100%;">Post review</button>
+      </form>
+      <div class="guest-only" style="text-align:center;padding:1rem 0;">
+        <div style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">Sign in to write a review.</div>
+        <button class="btn-primary" onclick="openAuthModal('login')">Sign in</button>
+      </div>
+    </div>
+
+    <div class="card review-filter">
+      <div class="sidebar-title" style="font-family:'Fraunces',serif;font-weight:700;margin-bottom:1rem;">Filter by destination</div>
+      <select class="sort-select" id="filter-dest" onchange="loadReviews()">
+        <option value="">All destinations</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sidebar-title" style="font-family:'Fraunces',serif;font-weight:700;margin-bottom:0.5rem;" id="reviews-count">Loading reviews…</div>
+    <div id="reviews-list"><div class="loading-state"><div class="spinner"></div></div></div>
+  </div>
+</div>
+
+<footer>
+  Built by Team NexTrip &nbsp;·&nbsp; <a href="about.html" style="color:rgba(255,255,255,0.45);">About Us</a> &nbsp;·&nbsp; <span>Flask + SQLite</span>
+</footer>
+
+<script src="/static/js/nav.js"></script>
+<script>
+let selectedRating = 0;
+let destinations = [];
+
+document.getElementById('star-picker').addEventListener('click', (e) => {
+  const star = e.target.closest('span');
+  if (!star) return;
+  selectedRating = Number(star.dataset.v);
+  document.querySelectorAll('#star-picker span').forEach(s => {
+    s.classList.toggle('filled', Number(s.dataset.v) <= selectedRating);
+  });
+});
+
+async function loadDestinationOptions() {
+  try {
+    const res = await fetch('/api/destinations');
+    const data = await res.json();
+    destinations = data.results;
+    const opts = destinations.map(d => `<option value="${d.id}">${d.name} — ${d.loc}</option>`).join('');
+    document.getElementById('review-dest').innerHTML = '<option value="">Select a destination…</option>' + opts;
+    document.getElementById('filter-dest').innerHTML = '<option value="">All destinations</option>' + opts;
+  } catch (e) { /* ignore */ }
+}
+
+async function loadReviews() {
+  const destId = document.getElementById('filter-dest').value;
+  document.getElementById('reviews-list').innerHTML = '<div class="loading-state"><div class="spinner"></div></div>';
+  try {
+    const url = destId ? `/api/reviews?destination_id=${destId}` : '/api/reviews';
+    const res = await fetch(url);
+    const reviews = await res.json();
+    document.getElementById('reviews-count').textContent = `${reviews.length} review${reviews.length === 1 ? '' : 's'}`;
+    if (reviews.length === 0) {
+      document.getElementById('reviews-list').innerHTML = '<div class="empty-state">No reviews yet — be the first to write one!</div>';
+      return;
+    }
+    document.getElementById('reviews-list').innerHTML = reviews.map(r => `
+      <div class="review-item">
+        <div class="review-head">
+          <div>
+            <div class="review-user">${r.user_name}</div>
+            <div class="review-dest">${r.destination_name}</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="review-stars">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</div>
+            <div class="review-date">${new Date(r.created_at).toLocaleDateString()}</div>
+          </div>
+        </div>
+        <div class="review-comment">${r.comment}</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    document.getElementById('reviews-list').innerHTML = '<div class="empty-state">Could not load reviews.</div>';
+  }
+}
+
+async function submitReview(e) {
+  e.preventDefault();
+  const errEl = document.getElementById('review-error');
+  const okEl = document.getElementById('review-success');
+  errEl.classList.remove('show'); okEl.classList.remove('show');
+
+  const payload = {
+    destination_id: Number(document.getElementById('review-dest').value),
+    rating: selectedRating,
+    comment: document.getElementById('review-comment').value.trim(),
+  };
+  if (!payload.destination_id || !payload.rating || !payload.comment) {
+    errEl.textContent = 'Please select a destination, a rating, and write a comment.';
+    errEl.classList.add('show');
+    return false;
+  }
+
+  const res = await fetch('/api/reviews', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    errEl.textContent = data.error || 'Could not post review';
+    errEl.classList.add('show');
+    return false;
+  }
+  okEl.textContent = 'Review posted — thank you!';
+  okEl.classList.add('show');
+  document.getElementById('review-comment').value = '';
+  selectedRating = 0;
+  document.querySelectorAll('#star-picker span').forEach(s => s.classList.remove('filled'));
+  loadReviews();
+  return false;
+}
+
+function onAuthChanged() { /* nothing extra needed, auth-only/guest-only toggled by nav.js */ }
+
+loadDestinationOptions();
+loadReviews();
+</script>
+</body>
+</html>

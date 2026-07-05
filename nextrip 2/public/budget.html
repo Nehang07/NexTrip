@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Budget Tracker — NexTrip</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700\&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+.layout { max-width: 1100px; margin: 0 auto; padding: 3rem 5vw 5rem; display: grid; grid-template-columns: 360px 1fr; gap: 2.5rem; align-items: start; }
+@media (max-width: 850px) { .layout { grid-template-columns: 1fr; } }
+
+.summary-card { background: linear-gradient(135deg, var(--teal-dk), var(--teal)); color: #fff; border-radius: 16px; padding: 1.75rem; margin-bottom: 1.5rem; }
+.summary-total { font-family: 'Fraunces', serif; font-size: 2.1rem; font-weight: 800; }
+.summary-label { font-size: 0.8rem; color: rgba(255,255,255,0.8); margin-top: 4px; }
+
+.cat-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 0.82rem; }
+.cat-bar-row .cat-name { width: 100px; flex-shrink: 0; color: var(--ink2); }
+.cat-bar-track { flex: 1; height: 8px; background: var(--sand); border-radius: 100px; overflow: hidden; }
+.cat-bar-fill { height: 100%; background: var(--teal); border-radius: 100px; }
+.cat-bar-amt { width: 70px; text-align: right; flex-shrink: 0; font-weight: 600; }
+
+.entry-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--sand2); }
+.entry-row:last-child { border-bottom: none; }
+.entry-left { display: flex; align-items: center; gap: 12px; }
+.entry-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--teal-lt); display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+.entry-label { font-weight: 600; font-size: 0.9rem; }
+.entry-cat { font-size: 0.75rem; color: var(--muted); text-transform: capitalize; }
+.entry-amt { font-weight: 700; font-size: 0.92rem; }
+.entry-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; margin-left: 12px; }
+.entry-del:hover { color: #b33; }
+
+.signin-gate { text-align: center; padding: 4rem 2rem; }
+.signin-gate .icon { font-size: 2.5rem; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo"><svg width="28" height="28" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><defs><linearGradient id="ntGrad" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#14b892"/><stop offset="1" stop-color="#075a45"/></linearGradient></defs><rect width="30" height="30" rx="9" fill="url(#ntGrad)"/><path d="M8 15.5L21.5 6.5L16 22L13 16.5L8 15.5Z" fill="#fff"/></svg><span class="logo-word">Nex<span class="logo-accent">Trip</span></span></a>
+  <ul class="nav-links">
+    <li><a href="flights.html">Flights</a></li>
+    <li><a href="hotels.html">Hotels</a></li>
+    <li><a href="transport.html">Buses &amp; Trains</a></li>
+    <li><a href="explorer.html">Explore</a></li>
+    <li><a href="planner.html">AI Planner</a></li>
+    <li><a href="reviews.html">Reviews</a></li>
+    <li id="nav-auth-slot"></li>
+  </ul>
+</nav>
+
+<div class="page-banner">
+  <h1>Budget Tracker</h1>
+  <p>Log expenses by trip and category, and see exactly where your travel money goes. Saved to your account.</p>
+</div>
+
+<div id="page-body">
+  <div class="signin-gate card" style="max-width:1100px;margin:3rem auto;">
+    <div class="icon">🔒</div>
+    <div style="font-weight:700;margin-bottom:6px;">Sign in to track your budget</div>
+    <div style="color:var(--muted);margin-bottom:1.5rem;">Your expenses are saved to your account so you can access them from anywhere.</div>
+    <button class="btn-primary" onclick="openAuthModal('login')">Sign in</button>
+  </div>
+</div>
+
+<footer>
+  Built by Team NexTrip &nbsp;·&nbsp; <a href="about.html" style="color:rgba(255,255,255,0.45);">About Us</a> &nbsp;·&nbsp; <span>Flask + SQLite</span>
+</footer>
+
+<script src="/static/js/nav.js"></script>
+<script>
+const CATEGORY_ICONS = { stay: '🏨', food: '🍽️', transport: '🚕', activities: '🎟️', shopping: '🛍️', other: '📦' };
+let entries = [];
+let currentTrip = 'My Trip';
+
+function budgetLayout() {
+  return `
+  <div class="layout">
+    <div>
+      <div class="summary-card">
+        <div class="summary-total" id="summary-total">₹0</div>
+        <div class="summary-label">Total spent · <span id="summary-trip">${currentTrip}</span></div>
+      </div>
+      <div class="card">
+        <div class="sidebar-title" style="font-family:'Fraunces',serif;font-weight:700;margin-bottom:1rem;">By category</div>
+        <div id="cat-breakdown"><span style="color:var(--muted);font-size:0.85rem;">No expenses yet.</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div class="sidebar-title" style="font-family:'Fraunces',serif;font-weight:700;margin-bottom:1rem;">Add an expense</div>
+        <div class="form-error" id="budget-error"></div>
+        <form id="budget-form" onsubmit="return submitEntry(event)" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+          <div class="field" style="grid-column:1/-1;">
+            <label>Trip name</label>
+            <input type="text" id="trip-name-input" value="${currentTrip}" onchange="onTripNameChange(this.value)">
+          </div>
+          <div class="field">
+            <label>Category</label>
+            <select id="entry-category">
+              <option value="stay">🏨 Stay</option>
+              <option value="food">🍽️ Food</option>
+              <option value="transport">🚕 Transport</option>
+              <option value="activities">🎟️ Activities</option>
+              <option value="shopping">🛍️ Shopping</option>
+              <option value="other">📦 Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Amount (₹)</label>
+            <input type="number" id="entry-amount" min="1" step="1" required>
+          </div>
+          <div class="field" style="grid-column:1/-1;">
+            <label>Description</label>
+            <input type="text" id="entry-label" placeholder="e.g. Hotel Ganga View, 2 nights" required>
+          </div>
+          <button class="btn-primary" type="submit" style="grid-column:1/-1;">Add expense</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="sidebar-title" style="font-family:'Fraunces',serif;font-weight:700;margin-bottom:0.5rem;">Expenses</div>
+        <div id="entries-list"><span style="color:var(--muted);font-size:0.85rem;">No expenses logged yet.</span></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function onTripNameChange(val) {
+  currentTrip = val.trim() || 'My Trip';
+  document.getElementById('summary-trip').textContent = currentTrip;
+  loadEntries();
+}
+
+async function loadEntries() {
+  try {
+    const res = await fetch('/api/budget?trip_name=' + encodeURIComponent(currentTrip));
+    entries = await res.json();
+    renderEntries();
+  } catch (e) { /* ignore */ }
+}
+
+function renderEntries() {
+  const total = entries.reduce((s, e) => s + e.amount, 0);
+  document.getElementById('summary-total').textContent = '₹' + total.toLocaleString();
+
+  const byCat = {};
+  entries.forEach(e => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
+  const catEl = document.getElementById('cat-breakdown');
+  if (Object.keys(byCat).length === 0) {
+    catEl.innerHTML = '<span style="color:var(--muted);font-size:0.85rem;">No expenses yet.</span>';
+  } else {
+    catEl.innerHTML = Object.entries(byCat).sort((a,b) => b[1]-a[1]).map(([cat, amt]) => `
+      <div class="cat-bar-row">
+        <span class="cat-name">${CATEGORY_ICONS[cat] || '📦'} ${cat}</span>
+        <span class="cat-bar-track"><span class="cat-bar-fill" style="width:${total ? (amt/total*100) : 0}%;"></span></span>
+        <span class="cat-bar-amt">₹${amt.toLocaleString()}</span>
+      </div>
+    `).join('');
+  }
+
+  const listEl = document.getElementById('entries-list');
+  if (entries.length === 0) {
+    listEl.innerHTML = '<span style="color:var(--muted);font-size:0.85rem;">No expenses logged yet.</span>';
+  } else {
+    listEl.innerHTML = entries.map(e => `
+      <div class="entry-row">
+        <div class="entry-left">
+          <div class="entry-icon">${CATEGORY_ICONS[e.category] || '📦'}</div>
+          <div>
+            <div class="entry-label">${e.label}</div>
+            <div class="entry-cat">${e.category}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;">
+          <div class="entry-amt">₹${e.amount.toLocaleString()}</div>
+          <button class="entry-del" onclick="deleteEntry(${e.id})">✕</button>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+async function submitEntry(e) {
+  e.preventDefault();
+  const errEl = document.getElementById('budget-error');
+  errEl.classList.remove('show');
+  const payload = {
+    trip_name: currentTrip,
+    category: document.getElementById('entry-category').value,
+    label: document.getElementById('entry-label').value.trim(),
+    amount: Number(document.getElementById('entry-amount').value),
+  };
+  const res = await fetch('/api/budget', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    errEl.textContent = data.error || 'Could not add expense';
+    errEl.classList.add('show');
+    return false;
+  }
+  document.getElementById('entry-label').value = '';
+  document.getElementById('entry-amount').value = '';
+  loadEntries();
+  showToast('Expense added');
+  return false;
+}
+
+async function deleteEntry(id) {
+  await fetch(`/api/budget/${id}`, { method: 'DELETE' });
+  loadEntries();
+}
+
+function renderPage() {
+  const body = document.getElementById('page-body');
+  if (CURRENT_USER) {
+    body.innerHTML = budgetLayout();
+    loadEntries();
+  } else {
+    body.innerHTML = `
+    <div class="signin-gate card" style="max-width:1100px;margin:3rem auto;">
+      <div class="icon">🔒</div>
+      <div style="font-weight:700;margin-bottom:6px;">Sign in to track your budget</div>
+      <div style="color:var(--muted);margin-bottom:1.5rem;">Your expenses are saved to your account so you can access them from anywhere.</div>
+      <button class="btn-primary" onclick="openAuthModal('login')">Sign in</button>
+    </div>`;
+  }
+}
+
+function onAuthChanged() { renderPage(); }
+document.addEventListener('nextrip-auth-ready', renderPage);
+</script>
+</body>
+</html>

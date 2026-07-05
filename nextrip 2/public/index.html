@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NexTrip — Plan your next journey</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700\&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+.home-hero {
+  margin-top: 64px;
+  min-height: 480px;
+  position: relative;
+  overflow: hidden;
+  padding-bottom: 3.5rem;
+}
+.home-hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: brightness(0.5); }
+.home-hero-overlay {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 4.5rem 2rem 1rem;
+}
+.home-hero-overlay h1 {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(2rem, 5.5vw, 3.4rem);
+  font-weight: 800; color: #fff; line-height: 1.1; margin-bottom: 0.9rem;
+  text-shadow: 0 2px 20px rgba(0,0,0,0.3);
+}
+.home-hero-overlay p { color: rgba(255,255,255,0.85); font-size: 1.02rem; max-width: 560px; margin-bottom: 0; }
+
+/* Tabbed search widget */
+.search-widget { position: relative; z-index: 3; max-width: 900px; margin: 2rem auto 0; padding: 0 5vw; }
+.widget-tabs { display: flex; gap: 4px; margin-bottom: -1px; }
+.widget-tab {
+  padding: 12px 22px; border-radius: 12px 12px 0 0; background: rgba(255,255,255,0.65); color: var(--ink2);
+  font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; border: none;
+  display: flex; align-items: center; gap: 6px;
+}
+.widget-tab.active { background: var(--white); color: var(--teal-dk); }
+.widget-tab:hover:not(.active) { background: rgba(255,255,255,0.85); }
+.widget-panel { background: var(--white); border-radius: 0 16px 16px 16px; padding: 1.75rem; box-shadow: 0 24px 60px rgba(0,0,0,0.18); }
+.widget-grid { display: grid; gap: 1rem; align-items: end; }
+.widget-grid.grid-flights, .widget-grid.grid-buses { grid-template-columns: 1fr 1fr auto 1fr 1fr auto; }
+.widget-grid.grid-hotels { grid-template-columns: 1.3fr 1fr 1fr 0.7fr auto; }
+.widget-grid .swap-btn { width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid var(--sand2); background: var(--white); cursor: pointer; transition: all 0.2s ease; align-self: center; margin-bottom: 4px; }
+.widget-grid .swap-btn:hover { border-color: var(--teal); color: var(--teal); transform: rotate(180deg); }
+@media (max-width: 900px) {
+  .widget-grid.grid-flights, .widget-grid.grid-buses, .widget-grid.grid-hotels { grid-template-columns: 1fr 1fr; }
+  .widget-grid .swap-btn { display: none; }
+  .widget-tab span.tab-label { display: none; }
+}
+
+.section { max-width: 1280px; margin: 0 auto; padding: 4rem 5vw; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2rem; flex-wrap: wrap; gap: 0.5rem; }
+.section-title { font-family: 'Fraunces', serif; font-size: 1.8rem; font-weight: 700; }
+.section-sub { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+.section-link { color: var(--teal); font-weight: 600; font-size: 0.88rem; text-decoration: none; white-space: nowrap; }
+
+.feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+.feature-card { background: var(--white); border: 1px solid var(--sand2); border-radius: 16px; padding: 1.75rem; }
+.feature-icon { font-size: 1.8rem; margin-bottom: 0.75rem; }
+.feature-card h3 { font-family: 'Fraunces', serif; font-size: 1.05rem; margin-bottom: 0.5rem; }
+.feature-card p { color: var(--muted); font-size: 0.88rem; }
+
+.dest-grid-home { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.5rem; }
+.dest-card { background: var(--white); border-radius: 18px; overflow: hidden; border: 1px solid var(--sand2); cursor: pointer; transition: transform 0.25s, box-shadow 0.25s; text-decoration: none; color: inherit; display: block; }
+.dest-card:hover { transform: translateY(-6px); box-shadow: 0 20px 48px rgba(0,0,0,0.12); }
+.dest-img-wrap { position: relative; height: 190px; overflow: hidden; }
+.dest-img-wrap img { width: 100%; height: 100%; object-fit: cover; }
+.dest-badge { position: absolute; top: 12px; left: 12px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 10px; border-radius: 100px; background: rgba(13,158,117,0.85); color: #fff; }
+.dest-body { padding: 1rem 1.1rem 1.1rem; }
+.dest-name { font-family: 'Fraunces', serif; font-size: 1rem; font-weight: 700; margin-bottom: 3px; }
+.dest-loc { font-size: 0.78rem; color: var(--muted); margin-bottom: 8px; }
+.dest-rating { font-size: 0.82rem; font-weight: 600; }
+.dest-rating .star { color: var(--accent); }
+
+.cta-strip {
+  background: linear-gradient(135deg, var(--teal-dk), var(--teal));
+  color: #fff; text-align: center; padding: 4rem 5vw; border-radius: 24px;
+  margin: 0 5vw 4rem;
+}
+.cta-strip h2 { font-family: 'Fraunces', serif; font-size: 1.8rem; margin-bottom: 0.75rem; }
+.cta-strip p { color: rgba(255,255,255,0.85); margin-bottom: 1.75rem; }
+.cta-strip .btn-primary { background: #fff; color: var(--teal-dk); }
+.cta-strip .btn-primary:hover { background: var(--sand); }
+
+@media (max-width: 900px) {
+  .feature-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo"><svg width="28" height="28" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><defs><linearGradient id="ntGrad" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#14b892"/><stop offset="1" stop-color="#075a45"/></linearGradient></defs><rect width="30" height="30" rx="9" fill="url(#ntGrad)"/><path d="M8 15.5L21.5 6.5L16 22L13 16.5L8 15.5Z" fill="#fff"/></svg><span class="logo-word">Nex<span class="logo-accent">Trip</span></span></a>
+  <ul class="nav-links">
+    <li><a href="flights.html">Flights</a></li>
+    <li><a href="hotels.html">Hotels</a></li>
+    <li><a href="transport.html">Buses &amp; Trains</a></li>
+    <li><a href="explorer.html">Explore</a></li>
+    <li><a href="planner.html">AI Planner</a></li>
+    <li><a href="reviews.html">Reviews</a></li>
+    <li id="nav-auth-slot"></li>
+  </ul>
+</nav>
+
+<div class="home-hero">
+  <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&auto=format&fit=crop&q=80" alt="Mountain landscape">
+  <div class="home-hero-overlay">
+    <h1>Where will you go next?</h1>
+    <p>Search flights, hotels, and buses/trains — or explore destinations and let our AI build the itinerary.</p>
+  </div>
+  <div class="search-widget">
+    <div class="widget-tabs">
+      <button class="widget-tab active" data-tab="flights" onclick="switchWidgetTab('flights')">✈️ <span class="tab-label">Flights</span></button>
+      <button class="widget-tab" data-tab="hotels" onclick="switchWidgetTab('hotels')">🏨 <span class="tab-label">Hotels</span></button>
+      <button class="widget-tab" data-tab="buses" onclick="switchWidgetTab('buses')">🚌 <span class="tab-label">Buses &amp; Trains</span></button>
+      <button class="widget-tab" data-tab="explore" onclick="switchWidgetTab('explore')">🧭 <span class="tab-label">Explore</span></button>
+    </div>
+    <div class="widget-panel">
+      <!-- Flights panel -->
+      <form id="panel-flights" onsubmit="return goToFlights(event)">
+        <div class="widget-grid grid-flights">
+          <div class="field"><label>From</label><select id="w-flight-origin"></select></div>
+          <div class="field"><label>To</label><select id="w-flight-destination"></select></div>
+          <button type="button" class="swap-btn" onclick="swapSelect('w-flight-origin','w-flight-destination')">⇄</button>
+          <div class="field"><label>Departure</label><input type="date" id="w-flight-date"></div>
+          <div class="field"><label>Travelers</label><input type="number" id="w-flight-pax" min="1" max="9" value="1"></div>
+          <button class="btn-primary" type="submit" style="height:44px;">Search</button>
+        </div>
+      </form>
+      <!-- Hotels panel -->
+      <form id="panel-hotels" style="display:none;" onsubmit="return goToHotels(event)">
+        <div class="widget-grid grid-hotels">
+          <div class="field"><label>City</label><select id="w-hotel-city"></select></div>
+          <div class="field"><label>Check-in</label><input type="date" id="w-hotel-checkin"></div>
+          <div class="field"><label>Check-out</label><input type="date" id="w-hotel-checkout"></div>
+          <div class="field"><label>Guests</label><input type="number" id="w-hotel-guests" min="1" max="10" value="2"></div>
+          <button class="btn-primary" type="submit" style="height:44px;">Search</button>
+        </div>
+      </form>
+      <!-- Buses panel -->
+      <form id="panel-buses" style="display:none;" onsubmit="return goToBuses(event)">
+        <div class="widget-grid grid-buses">
+          <div class="field"><label>From</label><select id="w-bus-origin"></select></div>
+          <div class="field"><label>To</label><select id="w-bus-destination"></select></div>
+          <button type="button" class="swap-btn" onclick="swapSelect('w-bus-origin','w-bus-destination')">⇄</button>
+          <div class="field"><label>Travel date</label><input type="date" id="w-bus-date"></div>
+          <div style="visibility:hidden;">.</div>
+          <button class="btn-primary" type="submit" style="height:44px;">Search</button>
+        </div>
+      </form>
+      <!-- Explore panel -->
+      <div id="panel-explore" style="display:none;text-align:center;padding:1rem 0;">
+        <p style="color:var(--muted);margin-bottom:1rem;">Not sure where to go yet? Browse destinations by country, category, or budget.</p>
+        <a href="explorer.html" class="btn-primary" style="text-decoration:none;display:inline-block;">Explore Destinations</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Everything you need to plan a trip</div>
+      <div class="section-sub">Explorer, AI itinerary planner, budget tracker, and real traveler reviews — all in one place.</div>
+    </div>
+  </div>
+  <div class="feature-grid">
+    <div class="feature-card reveal" style="transition-delay:0.0s;">
+      <div class="feature-icon">🔍</div>
+      <h3>Explore destinations</h3>
+      <p>Filter and search real, database-backed destinations by category, country, and season. Save your favorites to your account.</p>
+    </div>
+    <div class="feature-card reveal" style="transition-delay:0.1s;">
+      <div class="feature-icon">🧭</div>
+      <h3>AI trip planner</h3>
+      <p>Tell us where you're going, for how long, and your budget — get a day-by-day itinerary generated instantly.</p>
+    </div>
+    <div class="feature-card reveal" style="transition-delay:0.2s;">
+      <div class="feature-icon">💰</div>
+      <h3>Budget tracker</h3>
+      <p>Log expenses by category per trip and see exactly where your money is going, saved to your account.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="padding-top:0;">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Popular right now</div>
+      <div class="section-sub" id="home-dest-sub">Loading destinations…</div>
+    </div>
+    <a href="explorer.html" class="section-link">See all destinations →</a>
+  </div>
+  <div class="dest-grid-home" id="home-dest-grid">
+    <div class="loading-state"><div class="spinner"></div>Loading…</div>
+  </div>
+</div>
+
+<div class="cta-strip reveal">
+  <h2>Ready to plan your next trip?</h2>
+  <p>Create a free account to save destinations, generate itineraries, and track your travel budget.</p>
+  <button class="btn-primary" onclick="openAuthModal('register')">Get started free</button>
+</div>
+
+<footer>
+  Built by Team NexTrip &nbsp;·&nbsp; <a href="about.html" style="color:rgba(255,255,255,0.45);">About Us</a> &nbsp;·&nbsp; <span>Flask + SQLite</span>
+</footer>
+
+<script src="/static/js/nav.js"></script>
+<script>
+async function loadHomeDestinations() {
+  try {
+    const res = await fetch('/api/destinations?sort=popular');
+    const data = await res.json();
+    const grid = document.getElementById('home-dest-grid');
+    const top = data.results.slice(0, 6);
+    document.getElementById('home-dest-sub').textContent = `${data.total} destinations across 5 countries`;
+    grid.innerHTML = top.map((d, idx) => `
+      <a class="dest-card reveal" href="explorer.html?q=${encodeURIComponent(d.name)}" style="transition-delay:${idx * 0.08}s;">
+        <div class="dest-img-wrap">
+          <img src="${d.img}" alt="${d.name}" loading="lazy" onerror="this.src='${d.fallback}'">
+          <div class="dest-badge">${d.label}</div>
+        </div>
+        <div class="dest-body">
+          <div class="dest-name">${d.name}</div>
+          <div class="dest-loc">📍 ${d.loc}</div>
+          <div class="dest-rating"><span class="star">★</span> ${d.rating} <span style="color:var(--muted);font-weight:400;">(${d.reviews.toLocaleString()})</span></div>
+        </div>
+      </a>
+    `).join('');
+    refreshScrollReveal();
+  } catch (e) {
+    document.getElementById('home-dest-grid').innerHTML = '<div class="empty-state">Could not load destinations. Is the server running?</div>';
+  }
+}
+loadHomeDestinations();
+
+/* ---------------- Search widget ---------------- */
+let widgetCities = [];
+
+async function loadWidgetCities() {
+  const res = await fetch('/api/cities');
+  widgetCities = await res.json();
+  const flightOpts = widgetCities.map(c => `<option value="${c.code}">${c.name} (${c.code})</option>`).join('');
+  document.getElementById('w-flight-origin').innerHTML = flightOpts;
+  document.getElementById('w-flight-destination').innerHTML = flightOpts;
+  document.getElementById('w-flight-origin').value = 'DEL';
+  document.getElementById('w-flight-destination').value = 'BOM';
+
+  const hotelOpts = widgetCities.map(c => `<option value="${c.name}">${c.name}, ${c.country}</option>`).join('');
+  document.getElementById('w-hotel-city').innerHTML = hotelOpts;
+
+  const indiaCities = ["Delhi","Mumbai","Bangalore","Chennai","Kolkata","Goa","Jaipur","Agra","Pune","Chandigarh"];
+  const busOpts = indiaCities.map(c => `<option value="${c}">${c}</option>`).join('');
+  document.getElementById('w-bus-origin').innerHTML = busOpts;
+  document.getElementById('w-bus-destination').innerHTML = busOpts;
+  document.getElementById('w-bus-origin').value = 'Delhi';
+  document.getElementById('w-bus-destination').value = 'Jaipur';
+
+  const today = new Date();
+  const t1 = new Date(Date.now() + 86400000);
+  const t3 = new Date(Date.now() + 3 * 86400000);
+  const t5 = new Date(Date.now() + 5 * 86400000);
+  document.getElementById('w-flight-date').value = t1.toISOString().slice(0, 10);
+  document.getElementById('w-flight-date').min = today.toISOString().slice(0, 10);
+  document.getElementById('w-bus-date').value = t1.toISOString().slice(0, 10);
+  document.getElementById('w-bus-date').min = today.toISOString().slice(0, 10);
+  document.getElementById('w-hotel-checkin').value = t3.toISOString().slice(0, 10);
+  document.getElementById('w-hotel-checkout').value = t5.toISOString().slice(0, 10);
+}
+
+function switchWidgetTab(tab) {
+  document.querySelectorAll('.widget-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  ['flights', 'hotels', 'buses', 'explore'].forEach(t => {
+    document.getElementById('panel-' + t).style.display = t === tab ? (t === 'explore' ? 'block' : 'block') : 'none';
+  });
+}
+
+function swapSelect(idA, idB) {
+  const a = document.getElementById(idA), b = document.getElementById(idB);
+  [a.value, b.value] = [b.value, a.value];
+}
+
+function goToFlights(e) {
+  e.preventDefault();
+  const o = document.getElementById('w-flight-origin').value;
+  const d = document.getElementById('w-flight-destination').value;
+  location.href = `flights.html?origin=${o}&destination=${d}`;
+  return false;
+}
+function goToHotels(e) {
+  e.preventDefault();
+  const city = document.getElementById('w-hotel-city').value;
+  location.href = `hotels.html?city=${encodeURIComponent(city)}`;
+  return false;
+}
+function goToBuses(e) {
+  e.preventDefault();
+  const o = document.getElementById('w-bus-origin').value;
+  const d = document.getElementById('w-bus-destination').value;
+  location.href = `transport.html?origin=${encodeURIComponent(o)}&destination=${encodeURIComponent(d)}`;
+  return false;
+}
+
+loadWidgetCities();
+</script>
+</body>
+</html>

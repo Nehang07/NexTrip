@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hotels — NexTrip</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+.search-card { background: var(--white); border-radius: 16px; border: 1px solid var(--sand2); padding: 1.75rem; margin: -3rem 5vw 2rem; position: relative; z-index: 5; box-shadow: 0 20px 48px rgba(0,0,0,0.08); }
+.search-grid { display: grid; grid-template-columns: 1.3fr 1fr 1fr 0.7fr auto; gap: 1rem; align-items: end; }
+@media (max-width: 950px) { .search-grid { grid-template-columns: 1fr 1fr; } }
+
+.results-wrap { max-width: 1200px; margin: 0 auto; padding: 0 5vw 4rem; display: grid; grid-template-columns: 240px 1fr; gap: 2rem; align-items: start; }
+@media (max-width: 850px) { .results-wrap { grid-template-columns: 1fr; } .filter-sidebar { display: none; } }
+
+.results-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; grid-column: 1/-1; }
+.results-title { font-family: 'Fraunces', serif; font-size: 1.3rem; font-weight: 700; }
+.results-sub { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
+
+.hotel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+.hotel-card {
+  background: var(--white); border: 1px solid var(--sand2); border-radius: 16px; overflow: hidden;
+  transition: transform 0.25s cubic-bezier(.2,.7,.2,1), box-shadow 0.25s ease;
+  opacity: 0; transform: translateY(14px); animation: fade-in-up 0.5s ease forwards;
+}
+.hotel-card:hover { transform: translateY(-6px); box-shadow: 0 20px 44px rgba(0,0,0,0.1); }
+.hotel-img-wrap { height: 180px; overflow: hidden; position: relative; }
+.hotel-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
+.hotel-card:hover .hotel-img-wrap img { transform: scale(1.06); }
+.hotel-stars { position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.92); border-radius: 100px; padding: 3px 10px; font-size: 0.72rem; font-weight: 700; }
+.hotel-body { padding: 1.1rem 1.2rem 1.25rem; }
+.hotel-name { font-family: 'Fraunces', serif; font-weight: 700; font-size: 1.02rem; margin-bottom: 3px; }
+.hotel-loc { font-size: 0.78rem; color: var(--muted); margin-bottom: 8px; }
+.hotel-amenities { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.hotel-amenity { font-size: 0.68rem; font-weight: 600; padding: 3px 9px; border-radius: 100px; background: var(--sand); color: var(--muted); }
+.hotel-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid var(--sand); }
+.hotel-price { font-family: 'Fraunces', serif; font-weight: 800; font-size: 1.15rem; color: var(--teal-dk); }
+.hotel-price small { font-size: 0.7rem; color: var(--muted); font-weight: 400; }
+.hotel-rating { font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo"><svg width="28" height="28" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><defs><linearGradient id="ntGrad" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#14b892"/><stop offset="1" stop-color="#075a45"/></linearGradient></defs><rect width="30" height="30" rx="9" fill="url(#ntGrad)"/><path d="M8 15.5L21.5 6.5L16 22L13 16.5L8 15.5Z" fill="#fff"/></svg><span class="logo-word">Nex<span class="logo-accent">Trip</span></span></a>
+  <ul class="nav-links">
+    <li><a href="flights.html">Flights</a></li>
+    <li><a href="hotels.html" class="active">Hotels</a></li>
+    <li><a href="transport.html">Buses &amp; Trains</a></li>
+    <li><a href="explorer.html">Explore</a></li>
+    <li><a href="planner.html">AI Planner</a></li>
+    <li><a href="reviews.html">Reviews</a></li>
+    <li id="nav-auth-slot"></li>
+  </ul>
+</nav>
+
+<div class="page-banner">
+  <h1>Find your stay</h1>
+  <p>From budget stays to five-star resorts, across every NexTrip destination.</p>
+</div>
+
+<div class="search-card reveal">
+  <form id="hotel-search-form" onsubmit="return searchHotels(event)">
+    <div class="search-grid">
+      <div class="field">
+        <label>City</label>
+        <select id="city-select" required></select>
+      </div>
+      <div class="field">
+        <label>Check-in</label>
+        <input type="date" id="checkin-date" required>
+      </div>
+      <div class="field">
+        <label>Check-out</label>
+        <input type="date" id="checkout-date" required>
+      </div>
+      <div class="field">
+        <label>Guests</label>
+        <input type="number" id="guest-count" min="1" max="10" value="2">
+      </div>
+      <button class="btn-primary" type="submit" style="height:44px;">Search Hotels</button>
+    </div>
+  </form>
+</div>
+
+<div class="results-wrap">
+  <div class="results-head">
+    <div>
+      <div class="results-title" id="results-title">Hotels</div>
+      <div class="results-sub" id="results-sub">Loading…</div>
+    </div>
+    <select class="sort-select" id="sort-select" onchange="renderResults()">
+      <option value="rating">Sort: Top rated</option>
+      <option value="price-low">Sort: Price (low to high)</option>
+      <option value="price-high">Sort: Price (high to low)</option>
+    </select>
+  </div>
+
+  <aside class="filter-sidebar sidebar-card" style="align-self:start;">
+    <div class="sidebar-title" style="font-family:'Fraunces',serif;font-weight:700;margin-bottom:1rem;">Filters</div>
+    <div class="filter-group">
+      <span class="filter-label">Max price / night</span>
+      <div class="range-wrap">
+        <input type="range" id="price-range" min="2000" max="22000" step="500" value="22000" oninput="onPriceChange(this.value)">
+        <div class="range-labels"><span>₹2k</span><span id="price-val">Any</span><span>₹22k+</span></div>
+      </div>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Minimum star rating</span>
+      <select id="stars-select" onchange="searchHotels(null)" style="width:100%;padding:8px;border-radius:8px;border:1.5px solid var(--sand2);">
+        <option value="0">Any</option>
+        <option value="2">2★ and up</option>
+        <option value="4">4★ and up</option>
+        <option value="5">5★ only</option>
+      </select>
+    </div>
+  </aside>
+
+  <div class="hotel-grid" id="hotel-results">
+    <div class="loading-state"><div class="spinner"></div>Loading hotels…</div>
+  </div>
+</div>
+
+<footer>
+  Built by Team NexTrip &nbsp;·&nbsp; <a href="about.html" style="color:rgba(255,255,255,0.45);">About Us</a> &nbsp;·&nbsp; <span>Flask + SQLite</span>
+</footer>
+
+<script src="/static/js/nav.js"></script>
+<script>
+let cities = [];
+let currentResults = [];
+let maxPrice = null;
+
+async function loadCities() {
+  const res = await fetch('/api/cities');
+  cities = await res.json();
+  document.getElementById('city-select').innerHTML = cities.map(c => `<option value="${c.name}">${c.name}, ${c.country}</option>`).join('');
+
+  const params = new URLSearchParams(location.search);
+  if (params.get('city')) document.getElementById('city-select').value = params.get('city');
+
+  const today = new Date();
+  const in3 = new Date(Date.now() + 3 * 86400000);
+  const in5 = new Date(Date.now() + 5 * 86400000);
+  document.getElementById('checkin-date').value = in3.toISOString().slice(0, 10);
+  document.getElementById('checkin-date').min = today.toISOString().slice(0, 10);
+  document.getElementById('checkout-date').value = in5.toISOString().slice(0, 10);
+  document.getElementById('checkout-date').min = in3.toISOString().slice(0, 10);
+
+  searchHotels(null);
+}
+
+function onPriceChange(val) {
+  document.getElementById('price-val').textContent = Number(val) >= 22000 ? 'Any' : '₹' + Number(val).toLocaleString();
+  maxPrice = Number(val) >= 22000 ? null : Number(val);
+  searchHotels(null);
+}
+
+async function searchHotels(e) {
+  if (e) e.preventDefault();
+  const city = document.getElementById('city-select').value;
+  const minStars = document.getElementById('stars-select').value;
+
+  document.getElementById('hotel-results').innerHTML = '<div class="loading-state"><div class="spinner"></div>Searching hotels…</div>';
+
+  const params = new URLSearchParams({ city });
+  if (maxPrice) params.set('max_price', maxPrice);
+  if (minStars && minStars !== '0') params.set('min_stars', minStars);
+
+  const res = await fetch('/api/hotels?' + params.toString());
+  const data = await res.json();
+  currentResults = data.results;
+
+  document.getElementById('results-title').textContent = `Hotels in ${city}`;
+  document.getElementById('results-sub').textContent = `${data.count} propert${data.count === 1 ? 'y' : 'ies'} found`;
+  renderResults();
+  return false;
+}
+
+function renderResults() {
+  const sort = document.getElementById('sort-select').value;
+  let results = [...currentResults];
+  if (sort === 'price-low') results.sort((a, b) => a.price_per_night - b.price_per_night);
+  else if (sort === 'price-high') results.sort((a, b) => b.price_per_night - a.price_per_night);
+  else results.sort((a, b) => b.rating - a.rating);
+
+  const el = document.getElementById('hotel-results');
+  if (results.length === 0) {
+    el.innerHTML = '<div class="empty-state">No hotels match these filters. Try loosening them.</div>';
+    return;
+  }
+
+  const nights = calcNights();
+  el.innerHTML = results.map((h, idx) => `
+    <div class="hotel-card" style="animation-delay:${idx * 0.06}s;">
+      <div class="hotel-img-wrap">
+        <img src="${h.img}" alt="${h.name}" loading="lazy">
+        <div class="hotel-stars">${'★'.repeat(h.star_rating)}</div>
+      </div>
+      <div class="hotel-body">
+        <div class="hotel-name">${h.name}</div>
+        <div class="hotel-loc">📍 ${h.address}</div>
+        <div class="hotel-rating">★ ${h.rating} <span style="color:var(--muted);font-weight:400;">(${h.reviews_count.toLocaleString()} reviews)</span></div>
+        <div class="hotel-amenities">${h.amenities.slice(0, 3).map(a => `<span class="hotel-amenity">${a}</span>`).join('')}</div>
+        <div class="hotel-footer">
+          <div>
+            <div class="hotel-price">₹${(h.price_per_night * nights).toLocaleString()}</div>
+            <small>₹${h.price_per_night.toLocaleString()}/night · ${nights} night${nights===1?'':'s'}</small>
+          </div>
+          <button class="btn-primary" onclick="bookHotel(${h.id}, ${nights})">Book</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function calcNights() {
+  const ci = new Date(document.getElementById('checkin-date').value);
+  const co = new Date(document.getElementById('checkout-date').value);
+  const diff = Math.round((co - ci) / 86400000);
+  return diff > 0 ? diff : 1;
+}
+
+function bookHotel(hotelId, nights) {
+  if (!CURRENT_USER) { showToast('Sign in to book a hotel'); openAuthModal('login'); return; }
+  const hotel = currentResults.find(h => h.id === hotelId);
+  const guests = Number(document.getElementById('guest-count').value) || 2;
+  const checkin = document.getElementById('checkin-date').value;
+  const checkout = document.getElementById('checkout-date').value;
+  sessionStorage.setItem('nextrip_checkout', JSON.stringify({
+    booking_type: 'hotel', item: hotel, amount: hotel.price_per_night * nights,
+    details: { nights, guests, checkin, checkout, guest_name: CURRENT_USER.name },
+  }));
+  location.href = 'checkout.html';
+}
+
+function onAuthChanged() { /* nothing extra needed */ }
+loadCities();
+</script>
+</body>
+</html>

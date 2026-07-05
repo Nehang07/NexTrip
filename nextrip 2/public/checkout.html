@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkout — NexTrip</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+.layout { max-width: 1000px; margin: 0 auto; padding: 3rem 5vw 5rem; display: grid; grid-template-columns: 1fr 380px; gap: 2.5rem; align-items: start; }
+@media (max-width: 850px) { .layout { grid-template-columns: 1fr; } }
+
+.summary-card { position: sticky; top: 80px; }
+.summary-item-img { width: 100%; height: 130px; border-radius: 10px; object-fit: cover; margin-bottom: 1rem; }
+.summary-row { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 8px 0; border-bottom: 1px solid var(--sand); }
+.summary-row:last-of-type { border-bottom: none; }
+.summary-total { display: flex; justify-content: space-between; font-weight: 800; font-size: 1.1rem; margin-top: 12px; padding-top: 12px; border-top: 2px solid var(--sand2); font-family: 'Fraunces', serif; }
+
+.card-visual {
+  background: linear-gradient(135deg, var(--teal-dk), var(--teal));
+  border-radius: 14px; padding: 1.5rem; color: #fff; margin-bottom: 1.5rem;
+  position: relative; overflow: hidden; min-height: 150px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  transition: transform 0.3s ease;
+}
+.card-visual::after { content: ''; position: absolute; top: -40px; right: -40px; width: 140px; height: 140px; border-radius: 50%; background: rgba(255,255,255,0.08); }
+.card-visual-number { font-family: 'Fraunces', serif; font-size: 1.15rem; letter-spacing: 0.12em; }
+.card-visual-row { display: flex; justify-content: space-between; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.85; }
+.card-brand-badge { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+
+.test-card-hint { background: var(--teal-lt); color: var(--teal-dk); border-radius: 10px; padding: 0.85rem 1rem; font-size: 0.78rem; margin-bottom: 1.25rem; }
+.test-card-hint code { background: rgba(255,255,255,0.6); padding: 1px 5px; border-radius: 4px; font-family: monospace; }
+
+.pay-btn { width: 100%; margin-top: 0.5rem; }
+
+/* Processing overlay */
+.processing-card { text-align: center; padding: 3.5rem 2rem; }
+.processing-spinner { width: 56px; height: 56px; border: 4px solid var(--sand2); border-top-color: var(--teal); border-radius: 50%; margin: 0 auto 1.5rem; animation: spin 0.8s linear infinite; }
+.processing-status { font-family: 'Fraunces', serif; font-weight: 600; font-size: 1.05rem; margin-bottom: 6px; }
+
+/* Success state */
+.success-card { text-align: center; padding: 3rem 2rem; }
+.success-circle {
+  width: 72px; height: 72px; border-radius: 50%; background: var(--teal); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1.5rem;
+  animation: pop-in 0.4s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes pop-in { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.success-ref { font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 800; color: var(--teal-dk); margin: 0.5rem 0 1.5rem; }
+.decline-card { text-align: center; padding: 2.5rem 2rem; }
+.decline-icon { width: 60px; height: 60px; border-radius: 50%; background: #fdecec; color: #c0392b; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; margin: 0 auto 1.25rem; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo"><svg width="28" height="28" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;"><defs><linearGradient id="ntGrad" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#14b892"/><stop offset="1" stop-color="#075a45"/></linearGradient></defs><rect width="30" height="30" rx="9" fill="url(#ntGrad)"/><path d="M8 15.5L21.5 6.5L16 22L13 16.5L8 15.5Z" fill="#fff"/></svg><span class="logo-word">Nex<span class="logo-accent">Trip</span></span></a>
+  <ul class="nav-links">
+    <li><a href="flights.html">Flights</a></li>
+    <li><a href="hotels.html">Hotels</a></li>
+    <li><a href="transport.html">Buses &amp; Trains</a></li>
+    <li><a href="explorer.html">Explore</a></li>
+    <li><a href="planner.html">AI Planner</a></li>
+    <li><a href="reviews.html">Reviews</a></li>
+    <li id="nav-auth-slot"></li>
+  </ul>
+</nav>
+
+<div class="page-banner">
+  <h1>Checkout</h1>
+  <p>Secure test-mode payment — no real charge will be made.</p>
+</div>
+
+<div class="layout" id="checkout-layout">
+  <!-- populated by JS -->
+</div>
+
+<footer>
+  Built by Team NexTrip &nbsp;·&nbsp; <a href="about.html" style="color:rgba(255,255,255,0.45);">About Us</a> &nbsp;·&nbsp; <span>Flask + SQLite</span>
+</footer>
+
+<script src="/static/js/nav.js"></script>
+<script>
+let checkoutData = null;
+
+function loadCheckout() {
+  const raw = sessionStorage.getItem('nextrip_checkout');
+  if (!raw) {
+    document.getElementById('checkout-layout').innerHTML = `
+      <div class="card" style="grid-column:1/-1;text-align:center;padding:3rem;">
+        <div style="font-size:2rem;margin-bottom:1rem;">🧳</div>
+        <div style="font-weight:700;margin-bottom:6px;">No booking selected</div>
+        <div style="color:var(--muted);margin-bottom:1.5rem;">Search for a flight, hotel, or bus/train first.</div>
+        <a href="flights.html" class="btn-primary" style="text-decoration:none;display:inline-block;">Search Flights</a>
+      </div>`;
+    return;
+  }
+  checkoutData = JSON.parse(raw);
+  renderCheckoutForm();
+}
+
+function itemSummaryHtml() {
+  const { booking_type, item, details } = checkoutData;
+  if (booking_type === 'flight') {
+    return `
+      <div class="summary-row"><span>Airline</span><span>${item.airline} (${item.flight_number})</span></div>
+      <div class="summary-row"><span>Route</span><span>${item.origin} → ${item.destination}</span></div>
+      <div class="summary-row"><span>Departure</span><span>${details.date}, ${item.depart_time}</span></div>
+      <div class="summary-row"><span>Travelers</span><span>${details.passengers}</span></div>`;
+  }
+  if (booking_type === 'hotel') {
+    return `
+      <img class="summary-item-img" src="${item.img}" alt="${item.name}">
+      <div class="summary-row"><span>Hotel</span><span>${item.name}</span></div>
+      <div class="summary-row"><span>Check-in</span><span>${details.checkin}</span></div>
+      <div class="summary-row"><span>Check-out</span><span>${details.checkout}</span></div>
+      <div class="summary-row"><span>Guests / Nights</span><span>${details.guests} / ${details.nights}</span></div>`;
+  }
+  return `
+    <div class="summary-row"><span>Operator</span><span>${item.operator}</span></div>
+    <div class="summary-row"><span>Route</span><span>${item.origin} → ${item.destination}</span></div>
+    <div class="summary-row"><span>Travel date</span><span>${details.date}, ${item.depart_time}</span></div>
+    <div class="summary-row"><span>Bus type</span><span>${item.bus_type}</span></div>`;
+}
+
+function renderCheckoutForm() {
+  const { amount } = checkoutData;
+  document.getElementById('checkout-layout').innerHTML = `
+    <div class="card" id="payment-panel">
+      <div class="test-card-hint">
+        💳 Test mode — use <code>4242 4242 4242 4242</code> for a successful payment, or <code>4000 0000 0000 0002</code> to see a decline. Any future expiry date and any 3-digit CVV will work.
+      </div>
+      <div class="card-visual" id="card-visual">
+        <div class="card-visual-row"><span>NexTrip Pay</span><span id="card-brand-label">Card</span></div>
+        <div class="card-visual-number" id="card-visual-number">•••• •••• •••• ••••</div>
+        <div class="card-visual-row"><span id="card-visual-name">CARDHOLDER NAME</span><span id="card-visual-expiry">MM/YY</span></div>
+      </div>
+      <div class="form-error" id="pay-error"></div>
+      <form id="pay-form" onsubmit="return submitPayment(event)">
+        <div class="field">
+          <label>Cardholder name</label>
+          <input type="text" id="card-name" placeholder="As it appears on the card" required oninput="updateCardVisual()">
+        </div>
+        <div class="field">
+          <label>Card number</label>
+          <input type="text" id="card-number" placeholder="4242 4242 4242 4242" maxlength="19" required oninput="formatCardNumber(this); updateCardVisual();">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+          <div class="field">
+            <label>Expiry (MM/YY)</label>
+            <input type="text" id="card-expiry" placeholder="12/28" maxlength="5" required oninput="formatExpiry(this); updateCardVisual();">
+          </div>
+          <div class="field">
+            <label>CVV</label>
+            <input type="text" id="card-cvv" placeholder="123" maxlength="4" required>
+          </div>
+        </div>
+        <button class="btn-primary pay-btn" type="submit" id="pay-btn">Pay ₹${amount.toLocaleString()}</button>
+      </form>
+    </div>
+    <div class="card summary-card">
+      <div class="sidebar-title" style="font-family:'Fraunces',serif;font-weight:700;margin-bottom:1rem;">Order summary</div>
+      ${itemSummaryHtml()}
+      <div class="summary-total"><span>Total</span><span>₹${amount.toLocaleString()}</span></div>
+    </div>
+  `;
+}
+
+function formatCardNumber(input) {
+  let digits = input.value.replace(/\D/g, '').slice(0, 16);
+  input.value = digits.replace(/(.{4})/g, '$1 ').trim();
+}
+function formatExpiry(input) {
+  let digits = input.value.replace(/\D/g, '').slice(0, 4);
+  input.value = digits.length > 2 ? digits.slice(0,2) + '/' + digits.slice(2) : digits;
+}
+function updateCardVisual() {
+  const number = document.getElementById('card-number').value || '•••• •••• •••• ••••';
+  const name = document.getElementById('card-name').value || 'CARDHOLDER NAME';
+  const expiry = document.getElementById('card-expiry').value || 'MM/YY';
+  document.getElementById('card-visual-number').textContent = number.padEnd(19, '•').slice(0, 19);
+  document.getElementById('card-visual-name').textContent = name.toUpperCase();
+  document.getElementById('card-visual-expiry').textContent = expiry;
+  const digits = number.replace(/\D/g, '');
+  document.getElementById('card-brand-label').textContent = digits.startsWith('4') ? 'Visa' : digits.startsWith('5') ? 'Mastercard' : 'Card';
+}
+
+async function submitPayment(e) {
+  e.preventDefault();
+  const errEl = document.getElementById('pay-error');
+  errEl.classList.remove('show');
+
+  const cardNumber = document.getElementById('card-number').value;
+  const expiry = document.getElementById('card-expiry').value;
+  const cvv = document.getElementById('card-cvv').value;
+
+  showProcessing();
+  const start = Date.now();
+
+  try {
+    const res = await fetch('/api/checkout/pay', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        booking_type: checkoutData.booking_type,
+        item_id: checkoutData.item.id,
+        amount: checkoutData.amount,
+        details: checkoutData.details,
+        card: { number: cardNumber, expiry, cvv },
+      }),
+    });
+    const data = await res.json();
+
+    const elapsed = Date.now() - start;
+    if (elapsed < 1700) await new Promise(r => setTimeout(r, 1700 - elapsed));
+
+    if (res.ok && data.status === 'succeeded') {
+      showSuccess(data);
+      sessionStorage.removeItem('nextrip_checkout');
+    } else {
+      showDecline(data.reason || 'Payment could not be completed');
+    }
+  } catch (err) {
+    showDecline('Something went wrong — is the server running?');
+  }
+  return false;
+}
+
+function showProcessing() {
+  document.getElementById('checkout-layout').innerHTML = `
+    <div class="card processing-card" style="grid-column:1/-1;">
+      <div class="processing-spinner"></div>
+      <div class="processing-status" id="processing-status">Contacting payment gateway…</div>
+      <div style="color:var(--muted);font-size:0.85rem;">Please don't close this window</div>
+    </div>`;
+  const messages = ["Contacting payment gateway…", "Verifying card details…", "Confirming your booking…"];
+  let i = 0;
+  const statusEl = document.getElementById('processing-status');
+  const interval = setInterval(() => {
+    i = (i + 1) % messages.length;
+    if (statusEl) statusEl.textContent = messages[i];
+    else clearInterval(interval);
+  }, 550);
+}
+
+function showSuccess(data) {
+  const { amount } = checkoutData;
+  document.getElementById('checkout-layout').innerHTML = `
+    <div class="card success-card" style="grid-column:1/-1;">
+      <div class="success-circle">✓</div>
+      <div style="font-weight:700;font-size:1.1rem;">Booking confirmed!</div>
+      <div class="success-ref">${data.booking_ref}</div>
+      <div style="color:var(--muted);font-size:0.85rem;margin-bottom:1.5rem;">
+        ₹${amount.toLocaleString()} charged to ${data.card_brand} ending in ${data.card_last4} · Ref ${data.gateway_ref}
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <a href="bookings.html" class="btn-primary" style="text-decoration:none;">View My Bookings</a>
+        <a href="index.html" class="btn-ghost" style="text-decoration:none;">Back to Home</a>
+      </div>
+    </div>`;
+}
+
+function showDecline(reason) {
+  document.getElementById('checkout-layout').innerHTML = `
+    <div class="card decline-card" style="grid-column:1/-1;">
+      <div class="decline-icon">✕</div>
+      <div style="font-weight:700;font-size:1.05rem;margin-bottom:6px;">Payment declined</div>
+      <div style="color:var(--muted);font-size:0.85rem;margin-bottom:1.5rem;">${reason}</div>
+      <button class="btn-primary" onclick="renderCheckoutForm()">Try again</button>
+    </div>`;
+}
+
+document.addEventListener('nextrip-auth-ready', () => {
+  if (!CURRENT_USER) { showToast('Sign in to complete checkout'); openAuthModal('login'); }
+});
+loadCheckout();
+</script>
+</body>
+</html>
