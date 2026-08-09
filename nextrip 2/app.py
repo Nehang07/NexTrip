@@ -2,6 +2,8 @@ import os
 import json
 import sqlite3
 import secrets
+import time
+from collections import defaultdict, deque
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, session, send_from_directory, g
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -11,17 +13,108 @@ DB_PATH = os.path.join(BASE_DIR, "nextrip.db")
 PUBLIC_DIR = os.path.join(BASE_DIR, "public")
 ASSETS_DIR = os.path.join(BASE_DIR, "static")
 
+# ---------------------------------------------------------------------------
+# Environment / production config
+#
+# Defaults are the SAFE (production) values. To develop locally over plain
+# HTTP, set NEXTRIP_ENV=development — this is the only thing that relaxes
+# security settings, and it must be set explicitly (never on by accident).
+# ---------------------------------------------------------------------------
+IS_DEV = os.environ.get("NEXTRIP_ENV", "production").lower() == "development"
+
+if not os.environ.get("NEXTRIP_SECRET_KEY") and not IS_DEV:
+    # Fail loudly in production rather than silently generating a key that
+    # resets (and logs everyone out) on every restart/redeploy.
+    print(
+        "WARNING: NEXTRIP_SECRET_KEY is not set. Sessions will not survive "
+        "a restart. Set this environment variable in your deployment platform."
+    )
+
 app = Flask(__name__, static_folder=PUBLIC_DIR, static_url_path="")
 
 
 @app.route("/static/<path:filename>")
 def static_assets(filename):
     return send_from_directory(ASSETS_DIR, filename)
+
+
 app.secret_key = os.environ.get("NEXTRIP_SECRET_KEY", secrets.token_hex(32))
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=not IS_DEV,       # cookies only sent over HTTPS in production
+    MAX_CONTENT_LENGTH=1 * 1024 * 1024,     # 1MB request body cap (defense against abuse)
 )
+
+
+@app.after_request
+def set_security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    if not IS_DEV:
+        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+    return response
+
+
+# ---------------------------------------------------------------------------
+# CSRF protection (double-submit cookie)
+#
+# The frontend already sends every mutating request as same-origin fetch()
+# with a JSON body, so state-changing requests also carry a custom header
+# (X-CSRF-Token) that a cross-site form/script cannot attach without
+# triggering a blocked CORS preflight (this app sends no CORS headers).
+# nav.js sets this header automatically — no per-page JS changes needed.
+# ---------------------------------------------------------------------------
+CSRF_COOKIE = "csrf_token"
+CSRF_HEADER = "X-CSRF-Token"
+CSRF_EXEMPT_PATHS = set()  # add paths here if a mutating route must be reachable cross-site
+
+
+@app.before_request
+def csrf_protect():
+    if request.method in ("POST", "PUT", "PATCH", "DELETE") and request.path.startswith("/api/"):
+        if request.path not in CSRF_EXEMPT_PATHS:
+            cookie_token = request.cookies.get(CSRF_COOKIE)
+            header_token = request.headers.get(CSRF_HEADER)
+            if not cookie_token or not header_token or not secrets.compare_digest(cookie_token, header_token):
+                return jsonify({"error": "Invalid or missing CSRF token. Refresh the page and try again."}), 403
+
+
+@app.after_request
+def ensure_csrf_cookie(response):
+    if not request.cookies.get(CSRF_COOKIE):
+        response.set_cookie(
+            CSRF_COOKIE, secrets.token_urlsafe(32),
+            httponly=False,   # must be readable by nav.js to echo back as a header
+            samesite="Lax",
+            secure=not IS_DEV,
+            max_age=60 * 60 * 24 * 7,
+        )
+    return response
+
+
+# ---------------------------------------------------------------------------
+# Basic in-memory rate limiting for auth endpoints
+#
+# Caveat: this resets per worker process and per restart. Fine for a single
+# small Render/Railway instance; if you scale to multiple gunicorn workers
+# or dynos, swap this for a shared store (Redis) so limits apply globally.
+# ---------------------------------------------------------------------------
+_attempt_log = defaultdict(deque)
+RATE_LIMIT_WINDOW = 15 * 60   # 15 minutes
+RATE_LIMIT_MAX = 8            # attempts per window per key
+
+
+def rate_limited(key):
+    now = time.time()
+    q = _attempt_log[key]
+    while q and now - q[0] > RATE_LIMIT_WINDOW:
+        q.popleft()
+    if len(q) >= RATE_LIMIT_MAX:
+        return True
+    q.append(now)
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -284,6 +377,9 @@ def page(page):
 
 @app.route("/api/auth/register", methods=["POST"])
 def register():
+    if rate_limited(f"register:{request.remote_addr}"):
+        return jsonify({"error": "Too many attempts. Please wait a few minutes and try again."}), 429
+
     data = request.get_json(force=True) or {}
     name = (data.get("name") or "").strip()
     email = (data.get("email") or "").strip().lower()
@@ -314,11 +410,15 @@ def login():
     email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""
 
+    if rate_limited(f"login:{request.remote_addr}") or rate_limited(f"login-email:{email}"):
+        return jsonify({"error": "Too many attempts. Please wait a few minutes and try again."}), 429
+
     db = get_db()
     user = db.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
     if not user or not check_password_hash(user["password_hash"], password):
         return jsonify({"error": "Invalid email or password"}), 401
 
+    session.clear()
     session["user_id"] = user["id"]
     return jsonify({"id": user["id"], "name": user["name"], "email": user["email"]})
 
@@ -1009,6 +1109,9 @@ def cancel_booking(booking_id):
 if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    # debug=True enables the interactive debugger and auto-reload, which can
+    # execute arbitrary code if ever exposed — only ever enable it when
+    # NEXTRIP_ENV=development is explicitly set (see top of file).
+    app.run(host="0.0.0.0", port=port, debug=IS_DEV)
 else:
     init_db()
