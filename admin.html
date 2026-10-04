@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — NexTrip</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root { --teal:#0d9e75; --teal-dk:#085040; --teal-lt:#e0f5ee; --ink:#1b2430; --muted:#6b7683; --sand:#f7f4ef; --line:#ede9e1; --red:#b33; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--sand); color: var(--ink); font-size: 14px; }
+header { background: #fff; border-bottom: 1px solid var(--line); padding: 14px 5vw; display: flex; justify-content: space-between; align-items: center; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: 'Fraunces', serif; font-weight: 700; font-size: 1.15rem; text-decoration: none; color: var(--ink); }
+.brand span span { color: var(--teal); font-style: italic; }
+.brand small { font-family: 'Plus Jakarta Sans'; font-weight: 600; font-size: .72rem; color: var(--muted); border: 1px solid var(--line); border-radius: 100px; padding: 2px 9px; margin-left: 4px; }
+.who { font-size: .85rem; color: var(--muted); display: flex; gap: 14px; align-items: center; }
+button, .btn { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: #fff; padding: 7px 14px; font-weight: 600; color: var(--ink); }
+button:hover { border-color: var(--teal); color: var(--teal-dk); }
+.primary { background: var(--teal-dk); color: #fff; border-color: var(--teal-dk); }
+.primary:hover { background: var(--teal-dk); color: #fff; opacity: .9; }
+.danger { color: var(--red); }
+.danger:hover { border-color: var(--red); color: var(--red); }
+nav.tabs { background: #fff; border-bottom: 1px solid var(--line); padding: 0 5vw; display: flex; gap: 4px; overflow-x: auto; }
+nav.tabs button { border: none; border-radius: 0; border-bottom: 3px solid transparent; background: none; padding: 14px 16px; color: var(--muted); white-space: nowrap; }
+nav.tabs button.on { color: var(--teal-dk); border-bottom-color: var(--teal); }
+main { max-width: 1150px; margin: 0 auto; padding: 1.8rem 5vw 4rem; }
+h2 { font-family: 'Fraunces', serif; font-size: 1.35rem; margin-bottom: 1rem; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 1.6rem; }
+.stat { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+.stat b { display: block; font-family: 'Fraunces', serif; font-size: 1.7rem; margin-top: 4px; }
+.stat span { color: var(--muted); font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.panel { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 1.4rem; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 10px; border-bottom: 1px solid var(--sand); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+.pill { font-size: .72rem; font-weight: 700; padding: 3px 10px; border-radius: 100px; background: var(--teal-lt); color: var(--teal-dk); }
+.pill.bad { background: #fdecec; color: var(--red); }
+.bar { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.bar i { display: block; height: 9px; background: var(--teal); border-radius: 100px; }
+.bar em { width: 70px; font-style: normal; color: var(--muted); text-transform: capitalize; }
+.form { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.form label { font-size: .75rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px; }
+.form input, .form select, .form textarea { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.form .wide { grid-column: 1 / -1; }
+.gate { max-width: 420px; margin: 5rem auto; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 2rem; }
+.gate input { width: 100%; font: inherit; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; margin: 4px 0 12px; }
+.err { color: var(--red); font-size: .82rem; margin-bottom: 10px; min-height: 1em; }
+#toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 8px; display: none; }
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="index.html">
+    <svg width="28" height="28" viewBox="0 0 30 30"><defs><linearGradient id="g" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#14b892"/><stop offset="1" stop-color="#075a45"/></linearGradient></defs><rect width="30" height="30" rx="9" fill="url(#g)"/><path d="M8 15.5L21.5 6.5L16 22L13 16.5L8 15.5Z" fill="#fff"/></svg>
+    <span>Nex<span>Trip</span></span><small>Admin</small>
+  </a>
+  <div class="who" id="who"></div>
+</header>
+<div id="app"></div>
+<div id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
+const day = (s) => (s || '').slice(0, 10);
+function toast(m) { const t = $('toast'); t.textContent = m; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 2200); }
+async function api(url, method = 'GET', body) {
+  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || 'Request failed');
+  return d;
+}
+
+function showLogin(msg) {
+  $('who').innerHTML = '';
+  $('app').innerHTML = `<div class="gate"><h2>Admin sign in</h2><div class="err" id="err">${esc(msg || '')}</div>
+    <label>Email</label><input id="em" type="email"><label>Password</label><input id="pw" type="password">
+    <button class="primary" style="width:100%" onclick="login()">Sign in</button></div>`;
+}
+async function login() {
+  try {
+    const u = await api('/api/auth/login', 'POST', { email: $('em').value, password: $('pw').value });
+    if (u.role !== 'admin') { await api('/api/auth/logout', 'POST'); return showLogin('This account is not an administrator.'); }
+    boot();
+  } catch (e) { $('err').textContent = e.message; }
+}
+async function logout() { await api('/api/auth/logout', 'POST'); showLogin(); }
+
+const TABS = [['dash', 'Dashboard'], ['users', 'Users'], ['bookings', 'Bookings'], ['payments', 'Payments'], ['dest', 'Destinations'], ['reviews', 'Reviews']];
+let tab = 'dash';
+async function boot() {
+  const me = (await api('/api/auth/me')).user;
+  if (!me) return showLogin();
+  if (me.role !== 'admin') return showLogin('You are signed in as a normal user. Sign in with an admin account.');
+  $('who').innerHTML = `${esc(me.name)} <button onclick="logout()">Sign out</button>`;
+  $('app').innerHTML = `<nav class="tabs">${TABS.map(t => `<button data-t="${t[0]}" onclick="go('${t[0]}')">${t[1]}</button>`).join('')}</nav><main id="main"></main>`;
+  go(tab);
+}
+function go(t) {
+  tab = t;
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  ({ dash, users, bookings, payments, dest, reviews })[t]().catch(e => { $('main').innerHTML = `<p class="err">${esc(e.message)}</p>`; });
+}
+const tbl = (head, rows) => `<div class="panel"><table><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr>${rows.join('') || `<tr><td colspan="${head.length}" style="color:var(--muted)">Nothing here yet.</td></tr>`}</table></div>`;
+const status = (s) => `<span class="pill ${s === 'confirmed' || s === 'succeeded' ? '' : 'bad'}">${esc(s)}</span>`;
+
+async function dash() {
+  const s = await api('/api/admin/stats');
+  const max = Math.max(1, ...Object.values(s.by_type));
+  $('main').innerHTML = `<h2>Dashboard</h2><div class="stats">
+    ${[['Users', s.users], ['Destinations', s.destinations], ['Reviews', s.reviews], ['Saved trips', s.trips], ['Bookings', s.bookings], ['Confirmed', s.confirmed], ['Cancelled', s.cancelled], ['Revenue', inr(s.revenue)]]
+      .map(x => `<div class="stat"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('')}</div>
+    <div class="panel"><h2 style="font-size:1.05rem">Bookings by type</h2>
+    ${['flight', 'hotel', 'bus'].map(t => `<div class="bar"><em>${t}</em><i style="width:${(s.by_type[t] || 0) / max * 60}%"></i><b>${s.by_type[t] || 0}</b></div>`).join('')}</div>
+    <h2>Recent bookings</h2>${tbl(['Ref', 'Customer', 'Type', 'Amount', 'Status', 'Date'],
+      s.recent.map(b => `<tr><td>${esc(b.booking_ref)}</td><td>${esc(b.user_name)}</td><td>${esc(b.booking_type)}</td><td>${inr(b.total_amount)}</td><td>${status(b.status)}</td><td>${day(b.created_at)}</td></tr>`))}`;
+}
+async function users() {
+  const u = await api('/api/admin/users');
+  $('main').innerHTML = `<h2>Users</h2>` + tbl(['ID', 'Name', 'Email', 'Role', 'Bookings', 'Joined', 'Status', ''],
+    u.map(x => `<tr><td>${x.id}</td><td>${esc(x.name)}</td><td>${esc(x.email)}</td><td>${esc(x.role)}</td><td>${x.bookings}</td><td>${day(x.created_at)}</td>
+    <td>${x.is_active ? '<span class="pill">Active</span>' : '<span class="pill bad">Suspended</span>'}</td>
+    <td>${x.role === 'admin' ? '' : `<button onclick="toggleUser(${x.id})">${x.is_active ? 'Suspend' : 'Activate'}</button>`}</td></tr>`));
+}
+async function toggleUser(id) { try { await api(`/api/admin/users/${id}/toggle`, 'POST'); toast('User updated'); users(); } catch (e) { toast(e.message); } }
+
+async function bookings() {
+  const b = await api('/api/admin/bookings');
+  $('main').innerHTML = `<h2>Bookings</h2>` + tbl(['Ref', 'Customer', 'Type', 'Amount', 'Status', 'Date', ''],
+    b.map(x => `<tr><td>${esc(x.booking_ref)}</td><td>${esc(x.user_name)}<br><small style="color:var(--muted)">${esc(x.user_email)}</small></td><td>${esc(x.booking_type)}</td><td>${inr(x.total_amount)}</td><td>${status(x.status)}</td><td>${day(x.created_at)}</td>
+    <td>${x.status === 'confirmed' ? `<button class="danger" onclick="cancelBooking(${x.id})">Cancel</button>` : ''}</td></tr>`));
+}
+async function cancelBooking(id) { if (!confirm('Cancel this booking?')) return; await api(`/api/admin/bookings/${id}/cancel`, 'POST'); toast('Booking cancelled'); bookings(); }
+
+async function payments() {
+  const p = await api('/api/admin/payments');
+  $('main').innerHTML = `<h2>Payments</h2>` + tbl(['ID', 'Booking', 'Customer', 'Amount', 'Card', 'Gateway ref', 'Status', 'Date'],
+    p.map(x => `<tr><td>${x.id}</td><td>${esc(x.booking_ref)}</td><td>${esc(x.user_name)}</td><td>${inr(x.amount)}</td><td>${esc(x.card_brand)} ••${esc(x.card_last4)}</td><td>${esc(x.gateway_ref)}</td><td>${status(x.status)}</td><td>${day(x.created_at)}</td></tr>`));
+}
+
+let editId = null, destCache = [];
+async function dest() {
+  destCache = await api('/api/admin/destinations');
+  $('main').innerHTML = `<h2>Destinations</h2>
+  <div class="panel"><h2 style="font-size:1.05rem" id="dform-title">Add a destination</h2><div class="form">
+    <div><label>Name</label><input id="d_name"></div><div><label>Location</label><input id="d_loc" placeholder="City, State"></div>
+    <div><label>Country</label><input id="d_country"></div>
+    <div><label>Category</label><select id="d_category">${['Popular', 'Adventure', 'Beach', 'Nature', 'Heritage', 'Hidden'].map(c => `<option>${c}</option>`).join('')}</select></div>
+    <div><label>Price from (₹)</label><input id="d_price_low" type="number" min="0"></div><div><label>Price to (₹)</label><input id="d_price_high" type="number" min="0"></div>
+    <div><label>Best season</label><input id="d_season" placeholder="Oct – Mar"></div><div><label>Image URL</label><input id="d_img"></div>
+    <div class="wide"><label>Description</label><textarea id="d_description" rows="2"></textarea></div>
+    <div class="wide"><label>Insider tip</label><input id="d_insider_tip"></div>
+  </div><p style="margin-top:12px"><button class="primary" onclick="saveDest()">Save destination</button> <button onclick="dest()">Clear</button></p></div>` +
+  tbl(['ID', 'Name', 'Location', 'Category', 'Price (₹)', ''], destCache.map(d => `<tr><td>${d.id}</td><td>${esc(d.name)}</td><td>${esc(d.loc)}, ${esc(d.country)}</td><td>${esc(d.category)}</td><td>${d.price_low}–${d.price_high}</td>
+    <td><button onclick="editDest(${d.id})">Edit</button> <button class="danger" onclick="delDest(${d.id})">Delete</button></td></tr>`));
+  editId = null;
+}
+const DF = ['name', 'loc', 'country', 'category', 'price_low', 'price_high', 'season', 'img', 'description', 'insider_tip'];
+function editDest(id) {
+  const d = destCache.find(x => x.id === id); editId = id;
+  DF.forEach(f => $('d_' + f).value = d[f] ?? '');
+  $('dform-title').textContent = 'Edit destination #' + id; window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+async function saveDest() {
+  const body = {}; DF.forEach(f => body[f] = $('d_' + f).value);
+  try {
+    if (editId) await api('/api/admin/destinations/' + editId, 'PUT', body); else await api('/api/admin/destinations', 'POST', body);
+    toast('Destination saved'); dest();
+  } catch (e) { toast(e.message); }
+}
+async function delDest(id) { if (!confirm('Delete this destination and its reviews?')) return; await api('/api/admin/destinations/' + id, 'DELETE'); toast('Deleted'); dest(); }
+
+async function reviews() {
+  const r = await api('/api/admin/reviews');
+  $('main').innerHTML = `<h2>Reviews</h2>` + tbl(['User', 'Destination', 'Rating', 'Comment', 'Date', ''],
+    r.map(x => `<tr><td>${esc(x.user_name)}</td><td>${esc(x.destination_name)}</td><td>${'★'.repeat(x.rating)}</td><td>${esc(x.comment)}</td><td>${day(x.created_at)}</td>
+    <td><button class="danger" onclick="delReview(${x.id})">Remove</button></td></tr>`));
+}
+async function delReview(id) { if (!confirm('Remove this review?')) return; await api('/api/admin/reviews/' + id, 'DELETE'); toast('Review removed'); reviews(); }
+
+boot();
+</script>
+</body>
+</html>
