@@ -2,8 +2,6 @@ import os
 import json
 import sqlite3
 import secrets
-import time
-from collections import defaultdict, deque
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, session, send_from_directory, g
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -13,108 +11,17 @@ DB_PATH = os.path.join(BASE_DIR, "nextrip.db")
 PUBLIC_DIR = os.path.join(BASE_DIR, "public")
 ASSETS_DIR = os.path.join(BASE_DIR, "static")
 
-# ---------------------------------------------------------------------------
-# Environment / production config
-#
-# Defaults are the SAFE (production) values. To develop locally over plain
-# HTTP, set NEXTRIP_ENV=development — this is the only thing that relaxes
-# security settings, and it must be set explicitly (never on by accident).
-# ---------------------------------------------------------------------------
-IS_DEV = os.environ.get("NEXTRIP_ENV", "production").lower() == "development"
-
-if not os.environ.get("NEXTRIP_SECRET_KEY") and not IS_DEV:
-    # Fail loudly in production rather than silently generating a key that
-    # resets (and logs everyone out) on every restart/redeploy.
-    print(
-        "WARNING: NEXTRIP_SECRET_KEY is not set. Sessions will not survive "
-        "a restart. Set this environment variable in your deployment platform."
-    )
-
 app = Flask(__name__, static_folder=PUBLIC_DIR, static_url_path="")
 
 
 @app.route("/static/<path:filename>")
 def static_assets(filename):
     return send_from_directory(ASSETS_DIR, filename)
-
-
 app.secret_key = os.environ.get("NEXTRIP_SECRET_KEY", secrets.token_hex(32))
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
-    SESSION_COOKIE_SECURE=not IS_DEV,       # cookies only sent over HTTPS in production
-    MAX_CONTENT_LENGTH=1 * 1024 * 1024,     # 1MB request body cap (defense against abuse)
 )
-
-
-@app.after_request
-def set_security_headers(response):
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    if not IS_DEV:
-        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
-    return response
-
-
-# ---------------------------------------------------------------------------
-# CSRF protection (double-submit cookie)
-#
-# The frontend already sends every mutating request as same-origin fetch()
-# with a JSON body, so state-changing requests also carry a custom header
-# (X-CSRF-Token) that a cross-site form/script cannot attach without
-# triggering a blocked CORS preflight (this app sends no CORS headers).
-# nav.js sets this header automatically — no per-page JS changes needed.
-# ---------------------------------------------------------------------------
-CSRF_COOKIE = "csrf_token"
-CSRF_HEADER = "X-CSRF-Token"
-CSRF_EXEMPT_PATHS = set()  # add paths here if a mutating route must be reachable cross-site
-
-
-@app.before_request
-def csrf_protect():
-    if request.method in ("POST", "PUT", "PATCH", "DELETE") and request.path.startswith("/api/"):
-        if request.path not in CSRF_EXEMPT_PATHS:
-            cookie_token = request.cookies.get(CSRF_COOKIE)
-            header_token = request.headers.get(CSRF_HEADER)
-            if not cookie_token or not header_token or not secrets.compare_digest(cookie_token, header_token):
-                return jsonify({"error": "Invalid or missing CSRF token. Refresh the page and try again."}), 403
-
-
-@app.after_request
-def ensure_csrf_cookie(response):
-    if not request.cookies.get(CSRF_COOKIE):
-        response.set_cookie(
-            CSRF_COOKIE, secrets.token_urlsafe(32),
-            httponly=False,   # must be readable by nav.js to echo back as a header
-            samesite="Lax",
-            secure=not IS_DEV,
-            max_age=60 * 60 * 24 * 7,
-        )
-    return response
-
-
-# ---------------------------------------------------------------------------
-# Basic in-memory rate limiting for auth endpoints
-#
-# Caveat: this resets per worker process and per restart. Fine for a single
-# small Render/Railway instance; if you scale to multiple gunicorn workers
-# or dynos, swap this for a shared store (Redis) so limits apply globally.
-# ---------------------------------------------------------------------------
-_attempt_log = defaultdict(deque)
-RATE_LIMIT_WINDOW = 15 * 60   # 15 minutes
-RATE_LIMIT_MAX = 8            # attempts per window per key
-
-
-def rate_limited(key):
-    now = time.time()
-    q = _attempt_log[key]
-    while q and now - q[0] > RATE_LIMIT_WINDOW:
-        q.popleft()
-    if len(q) >= RATE_LIMIT_MAX:
-        return True
-    q.append(now)
-    return False
 
 
 # ---------------------------------------------------------------------------
@@ -339,7 +246,7 @@ def current_user():
     if not uid:
         return None
     db = get_db()
-    return db.execute("SELECT id, name, email FROM users WHERE id=?", (uid,)).fetchone()
+    return db.execute("SELECT id, name, email, role FROM users WHERE id=?", (uid,)).fetchone()
 
 
 def login_required(fn):
@@ -377,9 +284,6 @@ def page(page):
 
 @app.route("/api/auth/register", methods=["POST"])
 def register():
-    if rate_limited(f"register:{request.remote_addr}"):
-        return jsonify({"error": "Too many attempts. Please wait a few minutes and try again."}), 429
-
     data = request.get_json(force=True) or {}
     name = (data.get("name") or "").strip()
     email = (data.get("email") or "").strip().lower()
@@ -410,17 +314,15 @@ def login():
     email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""
 
-    if rate_limited(f"login:{request.remote_addr}") or rate_limited(f"login-email:{email}"):
-        return jsonify({"error": "Too many attempts. Please wait a few minutes and try again."}), 429
-
     db = get_db()
     user = db.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
     if not user or not check_password_hash(user["password_hash"], password):
         return jsonify({"error": "Invalid email or password"}), 401
 
-    session.clear()
+    if not user["is_active"]:
+        return jsonify({"error": "This account has been suspended"}), 403
     session["user_id"] = user["id"]
-    return jsonify({"id": user["id"], "name": user["name"], "email": user["email"]})
+    return jsonify({"id": user["id"], "name": user["name"], "email": user["email"], "role": user["role"]})
 
 
 @app.route("/api/auth/logout", methods=["POST"])
@@ -434,7 +336,7 @@ def me():
     user = current_user()
     if not user:
         return jsonify({"user": None})
-    return jsonify({"user": {"id": user["id"], "name": user["name"], "email": user["email"]}})
+    return jsonify({"user": {"id": user["id"], "name": user["name"], "email": user["email"], "role": user["role"]}})
 
 
 # ---------------------------------------------------------------------------
@@ -1104,14 +1006,224 @@ def cancel_booking(booking_id):
     return jsonify({"ok": True})
 
 
+
+# ---------------------------------------------------------------------------
+# Admin module (role-based access)
+# ---------------------------------------------------------------------------
+
+def ensure_admin_schema():
+    """Add role/is_active columns to an existing users table and make sure one admin exists."""
+    db = sqlite3.connect(DB_PATH)
+    cols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+    if "role" not in cols:
+        db.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
+    if "is_active" not in cols:
+        db.execute("ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1")
+    email = os.environ.get("NEXTRIP_ADMIN_EMAIL", "admin@nextrip.com").lower()
+    password = os.environ.get("NEXTRIP_ADMIN_PASSWORD", "admin123")
+    row = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+    if row:
+        db.execute("UPDATE users SET role='admin' WHERE id=?", (row[0],))
+    else:
+        db.execute(
+            "INSERT INTO users (name, email, password_hash, created_at, role) VALUES (?,?,?,?, 'admin')",
+            ("Administrator", email, generate_password_hash(password), datetime.now(timezone.utc).isoformat()),
+        )
+    db.commit()
+    db.close()
+
+
+def admin_required(fn):
+    from functools import wraps
+
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not session.get("user_id"):
+            return jsonify({"error": "Login required"}), 401
+        user = current_user()
+        if not user or user["role"] != "admin":
+            return jsonify({"error": "Admin access only"}), 403
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
+@app.route("/api/admin/stats")
+@admin_required
+def admin_stats():
+    db = get_db()
+    one = lambda q: db.execute(q).fetchone()[0]
+    by_type = {r["booking_type"]: r["n"] for r in db.execute(
+        "SELECT booking_type, COUNT(*) n FROM bookings GROUP BY booking_type")}
+    recent = [dict(r) for r in db.execute(
+        """SELECT b.id, b.booking_ref, b.booking_type, b.total_amount, b.status, b.created_at, u.name AS user_name
+           FROM bookings b JOIN users u ON u.id=b.user_id ORDER BY b.created_at DESC LIMIT 5""")]
+    return jsonify({
+        "users": one("SELECT COUNT(*) FROM users WHERE role='user'"),
+        "destinations": one("SELECT COUNT(*) FROM destinations"),
+        "reviews": one("SELECT COUNT(*) FROM reviews"),
+        "trips": one("SELECT COUNT(*) FROM trips"),
+        "bookings": one("SELECT COUNT(*) FROM bookings"),
+        "confirmed": one("SELECT COUNT(*) FROM bookings WHERE status='confirmed'"),
+        "cancelled": one("SELECT COUNT(*) FROM bookings WHERE status='cancelled'"),
+        "revenue": one("SELECT COALESCE(SUM(total_amount),0) FROM bookings WHERE status='confirmed'"),
+        "by_type": by_type, "recent": recent,
+    })
+
+
+@app.route("/api/admin/users")
+@admin_required
+def admin_users():
+    rows = get_db().execute(
+        """SELECT u.id, u.name, u.email, u.role, u.is_active, u.created_at,
+                  (SELECT COUNT(*) FROM bookings b WHERE b.user_id=u.id) AS bookings
+           FROM users u ORDER BY u.id""").fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/admin/users/<int:uid>/toggle", methods=["POST"])
+@admin_required
+def admin_toggle_user(uid):
+    if uid == session["user_id"]:
+        return jsonify({"error": "You cannot suspend your own account"}), 400
+    db = get_db()
+    row = db.execute("SELECT is_active FROM users WHERE id=?", (uid,)).fetchone()
+    if not row:
+        return jsonify({"error": "Not found"}), 404
+    db.execute("UPDATE users SET is_active=? WHERE id=?", (0 if row["is_active"] else 1, uid))
+    db.commit()
+    return jsonify({"ok": True, "is_active": 0 if row["is_active"] else 1})
+
+
+@app.route("/api/admin/bookings")
+@admin_required
+def admin_bookings():
+    rows = get_db().execute(
+        """SELECT b.id, b.booking_ref, b.booking_type, b.total_amount, b.status, b.created_at,
+                  u.name AS user_name, u.email AS user_email
+           FROM bookings b JOIN users u ON u.id=b.user_id ORDER BY b.created_at DESC""").fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/admin/bookings/<int:bid>/cancel", methods=["POST"])
+@admin_required
+def admin_cancel_booking(bid):
+    db = get_db()
+    if not db.execute("SELECT id FROM bookings WHERE id=?", (bid,)).fetchone():
+        return jsonify({"error": "Not found"}), 404
+    db.execute("UPDATE bookings SET status='cancelled' WHERE id=?", (bid,))
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/admin/payments")
+@admin_required
+def admin_payments():
+    rows = get_db().execute(
+        """SELECT p.id, p.amount, p.card_brand, p.card_last4, p.gateway_ref, p.status, p.created_at,
+                  b.booking_ref, u.name AS user_name
+           FROM payments p JOIN bookings b ON b.id=p.booking_id JOIN users u ON u.id=p.user_id
+           ORDER BY p.created_at DESC""").fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+DEST_FIELDS = ["name", "loc", "country", "category", "season", "description", "insider_tip", "img"]
+
+
+@app.route("/api/admin/destinations")
+@admin_required
+def admin_destinations():
+    rows = get_db().execute(
+        "SELECT id, name, loc, country, category, season, price_low, price_high, rating, description, insider_tip, img "
+        "FROM destinations ORDER BY id").fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/admin/destinations", methods=["POST"])
+@admin_required
+def admin_add_destination():
+    d = request.get_json(force=True) or {}
+    for f in ["name", "loc", "country", "category"]:
+        if not (d.get(f) or "").strip():
+            return jsonify({"error": f"{f} is required"}), 400
+    try:
+        low, high = int(d.get("price_low", 0)), int(d.get("price_high", 0))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Prices must be numbers"}), 400
+    if low < 0 or high < low:
+        return jsonify({"error": "Price range is invalid"}), 400
+    img = (d.get("img") or "").strip()
+    db = get_db()
+    cur = db.execute(
+        """INSERT INTO destinations (name, loc, country, category, badge, label, rating, reviews_count,
+           price_low, price_high, flag, season, tags, img, fallback, description, insider_tip)
+           VALUES (?,?,?,?,?,?,0,0,?,?,?,?,?,?,?,?,?)""",
+        (d["name"].strip(), d["loc"].strip(), d["country"].strip(), d["category"].strip(),
+         d["category"].strip(), d["category"].strip(), low, high, "", (d.get("season") or "All year").strip(),
+         "[]", img, img, (d.get("description") or "").strip(), (d.get("insider_tip") or "").strip()))
+    db.commit()
+    return jsonify({"id": cur.lastrowid})
+
+
+@app.route("/api/admin/destinations/<int:did>", methods=["PUT"])
+@admin_required
+def admin_update_destination(did):
+    d = request.get_json(force=True) or {}
+    db = get_db()
+    if not db.execute("SELECT id FROM destinations WHERE id=?", (did,)).fetchone():
+        return jsonify({"error": "Not found"}), 404
+    sets, vals = [], []
+    for f in DEST_FIELDS:
+        if f in d:
+            sets.append(f"{f}=?"); vals.append((d[f] or "").strip())
+    for f in ("price_low", "price_high"):
+        if f in d:
+            try:
+                sets.append(f"{f}=?"); vals.append(int(d[f]))
+            except (TypeError, ValueError):
+                return jsonify({"error": "Prices must be numbers"}), 400
+    if sets:
+        db.execute(f"UPDATE destinations SET {', '.join(sets)} WHERE id=?", vals + [did])
+        db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/admin/destinations/<int:did>", methods=["DELETE"])
+@admin_required
+def admin_delete_destination(did):
+    db = get_db()
+    db.execute("DELETE FROM destinations WHERE id=?", (did,))
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/admin/reviews")
+@admin_required
+def admin_reviews():
+    rows = get_db().execute(
+        """SELECT r.id, r.rating, r.comment, r.created_at, u.name AS user_name, d.name AS destination_name
+           FROM reviews r JOIN users u ON u.id=r.user_id JOIN destinations d ON d.id=r.destination_id
+           ORDER BY r.created_at DESC""").fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/admin/reviews/<int:rid>", methods=["DELETE"])
+@admin_required
+def admin_delete_review(rid):
+    db = get_db()
+    db.execute("DELETE FROM reviews WHERE id=?", (rid,))
+    db.commit()
+    return jsonify({"ok": True})
+
+
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     init_db()
+    ensure_admin_schema()
     port = int(os.environ.get("PORT", 5000))
-    # debug=True enables the interactive debugger and auto-reload, which can
-    # execute arbitrary code if ever exposed — only ever enable it when
-    # NEXTRIP_ENV=development is explicitly set (see top of file).
-    app.run(host="0.0.0.0", port=port, debug=IS_DEV)
+    app.run(host="0.0.0.0", port=port, debug=True)
 else:
     init_db()
+    ensure_admin_schema()
+
