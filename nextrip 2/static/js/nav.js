@@ -1,31 +1,5 @@
 // Shared across all pages: auth session state, nav avatar/dropdown, login+register modal, toast.
 
-/* ---------------- CSRF ----------------
-   The backend sets a `csrf_token` cookie (readable by JS) and requires it
-   echoed back as an X-CSRF-Token header on every POST/PUT/PATCH/DELETE to
-   /api/*. Patch fetch() once, here, so every page's existing fetch() calls
-   pick this up automatically — no other file needs to change. */
-function getCookie(name) {
-  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-const _nativeFetch = window.fetch.bind(window);
-window.fetch = function (input, init) {
-  const method = ((init && init.method) || 'GET').toUpperCase();
-  const url = typeof input === 'string' ? input : input.url;
-  const isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
-  const isSameOriginApi = url.startsWith('/api/') || url.startsWith(location.origin + '/api/');
-
-  if (isMutating && isSameOriginApi) {
-    init = init || {};
-    init.headers = new Headers(init.headers || {});
-    const token = getCookie('csrf_token');
-    if (token) init.headers.set('X-CSRF-Token', token);
-  }
-  return _nativeFetch(input, init);
-};
-
 let CURRENT_USER = null;
 
 function initials(name) {
@@ -56,6 +30,7 @@ function renderAuthUI() {
         <button class="nav-avatar" onclick="toggleNavDropdown()">${initials(CURRENT_USER.name)}</button>
         <div class="nav-dropdown" id="nav-dropdown">
           <div class="nav-dropdown-name">${CURRENT_USER.name}</div>
+          ${CURRENT_USER.role === 'admin' ? '<a href="admin.html">Admin dashboard</a>' : ''}
           <a href="bookings.html">My Bookings</a>
           <a href="explorer.html">Saved destinations</a>
           <a href="planner.html">My trip plans</a>
